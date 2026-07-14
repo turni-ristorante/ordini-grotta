@@ -12,12 +12,9 @@
 :root{
   --ink:#16202b; --ink-2:#31404f; --mut:#7b8a99;
   --paper:#f4f2ed; --card:#ffffff; --line:#dfdcd4;
-  --acc:#0b6b5b;        /* verde bottiglia: azione */
-  --acc-soft:#e3f0ec;
-  --ord:#1f6fb2;        /* ordinato */
-  --con:#0b6b5b;        /* consegnato */
-  --warn:#c0392b;       /* senza prezzo / mancante */
-  --warn-soft:#fbeceb;
+  --acc:#0b6b5b; --acc-soft:#e3f0ec;
+  --ord:#1f6fb2; --con:#0b6b5b;
+  --warn:#c0392b; --warn-soft:#fbeceb;
   --amb:#b4700a; --amb-soft:#fdf1dc;
   --r:12px;
 }
@@ -28,26 +25,21 @@ h1,h2,h3,.dsp{font-family:Archivo,system-ui,sans-serif;letter-spacing:-.01em;mar
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none}
 .hide{display:none!important}
-
-/* ---------- chrome ---------- */
-header{position:sticky;top:0;z-index:30;background:var(--ink);color:#fff;padding:10px 14px calc(10px + env(safe-area-inset-top)) 14px;padding-top:calc(10px + env(safe-area-inset-top))}
+header{position:sticky;top:0;z-index:30;background:var(--ink);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
 .hrow{display:flex;align-items:center;gap:10px}
 .htitle{font-family:Archivo;font-weight:700;font-size:17px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hsub{font-size:12px;color:#9fb0be;margin-top:2px}
 .iconbtn{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:#ffffff1a;color:#fff;font-size:16px;flex:none}
-.iconbtn:active{background:#ffffff33}
 .tabs{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tab{padding:7px 13px;border-radius:999px;background:#ffffff14;color:#c9d5de;font-size:13px;font-weight:500;white-space:nowrap}
 .tab.on{background:#fff;color:var(--ink);font-weight:600}
 main{padding:14px;max-width:900px;margin:0 auto}
-
-/* ---------- generic ---------- */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:10px}
 .btn{background:var(--acc);color:#fff;padding:11px 16px;border-radius:10px;font-weight:600;display:inline-flex;align-items:center;gap:7px;justify-content:center}
 .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
 .btn.warn{background:var(--warn)}
-.btn:disabled{opacity:.45}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 .btn.full{width:100%}
 .inp{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:#fff}
 .inp:focus{outline:2px solid var(--acc);outline-offset:-1px;border-color:var(--acc)}
@@ -56,27 +48,30 @@ label.f>span{display:block;font-size:11px;text-transform:uppercase;letter-spacin
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
 .muted{color:var(--mut);font-size:12.5px}
 .empty{text-align:center;color:var(--mut);padding:40px 20px}
-.chipbar{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;scrollbar-width:none}
+.flt{margin-bottom:8px}
+.flt-lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);font-weight:600;margin-bottom:4px}
+.chipbar{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .chipbar::-webkit-scrollbar{display:none}
 .chip{padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:13px;white-space:nowrap}
 .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
-.badge{display:inline-block;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.02em}
+.chip.pos.on{background:var(--amb);border-color:var(--amb)}
+.badge{display:inline-block;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:600}
 .b-open{background:var(--amb-soft);color:var(--amb)}
 .b-ord{background:#e6f0f8;color:var(--ord)}
 .b-clo{background:var(--acc-soft);color:var(--acc)}
 .b-warn{background:var(--warn-soft);color:var(--warn)}
-
-/* ---------- riga articolo ---------- */
+.b-lock{background:#eceff2;color:var(--mut)}
 .art{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px;margin-bottom:8px}
 .art.filled{border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc)}
 .art.noprice{border-color:var(--warn);background:var(--warn-soft)}
 .art-top{display:flex;gap:10px;align-items:flex-start}
-.art-nm{flex:1;font-weight:600;line-height:1.3}
-.art-meta{font-size:12px;color:var(--mut);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 8px}
-.art-meta b{font-weight:600;color:var(--ink-2)}
+.art-nm{font-weight:600;line-height:1.3}
+.art-meta{font-size:12px;color:var(--mut);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.pos{background:var(--amb-soft);color:var(--amb);padding:1px 7px;border-radius:5px;font-weight:600}
 .qty{display:flex;gap:6px;flex:none;align-items:center}
 .qty input{width:66px;padding:9px 8px;border:1.5px solid var(--line);border-radius:9px;text-align:center;font-weight:700;font-size:16px;background:#fff}
 .qty input.has{border-color:var(--acc);background:var(--acc-soft)}
+.qty input:disabled{background:#f4f4f2;color:var(--ink-2);border-style:dashed}
 .qty select{padding:9px 4px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:13px}
 .art-listino{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:4px 12px}
 .flags{display:flex;gap:8px;margin-top:9px}
@@ -85,39 +80,35 @@ label.f>span{display:block;font-size:11px;text-transform:uppercase;letter-spacin
 .flag.on-con{border-color:var(--con);background:var(--acc-soft);color:var(--con)}
 .notebox{margin-top:8px}
 .notebox input{width:100%;padding:8px 10px;border:1px dashed var(--line);border-radius:8px;font-size:13px;background:#fcfbf9}
-
-/* ---------- barra salva ---------- */
+.notebox input:disabled{background:#f4f4f2}
 .savebar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:#fff;border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:center}
 .savebar .cnt{flex:1;font-size:13px;color:var(--mut)}
 .savebar .cnt b{color:var(--warn)}
-
-/* ---------- modale ---------- */
-.ov{position:fixed;inset:0;z-index:60;background:#16202bcc;display:flex;align-items:flex-end;justify-content:center;padding:0}
+.ov{position:fixed;inset:0;z-index:60;background:#16202bcc;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--paper);width:100%;max-width:640px;max-height:92vh;overflow-y:auto;border-radius:16px 16px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
 .sheet h2{font-size:19px;margin-bottom:4px}
 .rep-item{background:#fff;border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:8px;padding:9px 11px;margin-bottom:6px;font-size:14px}
 .rep-item .m{font-size:12px;color:var(--mut)}
+.umrow{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:6px}
+.umrow span{flex:1;font-weight:600}
 @media(min-width:700px){ .ov{align-items:center;padding:20px} .sheet{border-radius:16px} }
 </style>
 </head>
 <body>
 
-<!-- =================== LOGIN =================== -->
 <div id="v-login">
   <main style="padding-top:60px;max-width:380px">
     <h1 class="dsp" style="font-size:26px">Ordini</h1>
     <p class="muted" style="margin:6px 0 24px">Grotta Marcello</p>
     <div class="card">
       <label class="f"><span>Codice personale</span>
-        <input class="inp" id="in-code" type="tel" inputmode="numeric" autocomplete="off" placeholder="es. 2001">
-      </label>
+        <input class="inp" id="in-code" type="text" autocomplete="off" placeholder="es. 2001"></label>
       <button class="btn full" id="btn-login">Entra</button>
       <p id="login-err" class="muted hide" style="color:var(--warn);margin:10px 0 0"></p>
     </div>
   </main>
 </div>
 
-<!-- =================== APP =================== -->
 <div id="v-app" class="hide">
   <header>
     <div class="hrow">
@@ -137,15 +128,15 @@ label.f>span{display:block;font-size:11px;text-transform:uppercase;letter-spacin
   <div class="cnt" id="save-cnt"></div>
   <button class="btn" id="btn-save">💾 Salva</button>
 </div>
-
 <div id="modal-root"></div>
 
 <script>
 /* ============================================================
-   CONFIGURAZIONE  —  incolla qui i dati del tuo progetto Supabase
+   CONFIGURAZIONE
    ============================================================ */
 const SUPABASE_URL = 'https://otxmmlkyoxndcdybtufy.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_HQpyom62MSKjBmTa_bisUw_a2m6RE5l';
+
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const SETTORI = {
@@ -153,155 +144,169 @@ const SETTORI = {
   sala_vini: { nome:'Sala e vini',       liste:['Vini','Sala'] },
   bar:       { nome:'Bar',               liste:['Bar'] }
 };
-const UM = ['Pz','Kg','Co','Ct','Lt','g','ml','Mazzo'];
+const MIN_CANC = 20;      // minuti entro cui il creatore può cancellare
+const GG_CESTINO = 10;    // giorni di permanenza nel cestino
 
-const S = {              // stato applicativo
-  user:null, view:'ordini', settore:null, lista:null,
-  ordini:[], ordine:null, articoli:[], righe:{}, dirty:new Set(),
-  q:'', filtro:null, soloQta:false, alertVisto:false
-};
+const S = { user:null, view:'ordini', ordini:[], ordine:null, articoli:[], righe:{}, um:[],
+            dirty:new Set(), lista:null, q:'', fCat:null, fPos:null, soloQta:false, alertVisto:false };
+
 const $ = s => document.querySelector(s);
 const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const oggi = () => new Date().toISOString().slice(0,10);
 const dataIT = d => { const [a,m,g]=d.split('-'); return `${g}/${m}/${a}`; };
+const nomeSettore = s => SETTORI[s]?.nome || s;
+const titoloOrdine = o => dataIT(o.data) + ' · ' + nomeSettore(o.settore);
+
+const isMgr  = () => S.user?.ruolo === 'manager';
 const isResp = () => S.user?.ruolo === 'responsabile';
+const vedeListino = () => isMgr() || isResp();
+const puoFlaggare = () => isMgr() || isResp();
+const puoQta = o => isMgr() || (o && o.creato_da === S.user.id);
+const puoCancellare = o => {
+  if(isMgr()) return true;
+  if(!o || o.creato_da !== S.user.id) return false;
+  return (Date.now() - new Date(o.creato_il).getTime()) < MIN_CANC*60000;
+};
+const minutiRimasti = o => Math.max(0, Math.ceil(MIN_CANC - (Date.now()-new Date(o.creato_il).getTime())/60000));
 
 /* ---------------- LOGIN ---------------- */
 $('#btn-login').onclick = async () => {
   const cod = $('#in-code').value.trim();
   if(!cod) return;
   const { data, error } = await sb.from('ord_utenti').select('*').eq('codice',cod).eq('attivo',true).maybeSingle();
-  if(error || !data){ const e=$('#login-err'); e.textContent='Codice non riconosciuto. Riprova.'; e.classList.remove('hide'); return; }
-  S.user = data;
-  localStorage.setItem('gm_ordini_code', cod);
+  const e=$('#login-err');
+  if(error){ e.textContent='Non riesco a contattare il database: '+error.message; e.classList.remove('hide'); return; }
+  if(!data){ e.textContent='Codice non riconosciuto. Riprova.'; e.classList.remove('hide'); return; }
+  S.user=data; localStorage.setItem('gm_ordini_code',cod);
   $('#v-login').classList.add('hide'); $('#v-app').classList.remove('hide');
-  S.settore = data.settori[0] || 'cucina';
-  await caricaArticoli();
-  await vistaOrdini();
+  await Promise.all([caricaArticoli(), caricaUM()]);
+  if(isMgr()) svuotaCestinoVecchio();
+  vistaOrdini();
 };
-$('#in-code').addEventListener('keydown', e => { if(e.key==='Enter') $('#btn-login').click(); });
-
-window.addEventListener('load', async () => {
-  const cod = localStorage.getItem('gm_ordini_code');
-  if(cod){ $('#in-code').value = cod; $('#btn-login').click(); }
-});
+$('#in-code').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#btn-login').click(); });
+window.addEventListener('load', ()=>{ const c=localStorage.getItem('gm_ordini_code'); if(c){ $('#in-code').value=c; $('#btn-login').click(); }});
 
 /* ---------------- DATI ---------------- */
 async function caricaArticoli(){
   const { data } = await sb.from('ord_articoli').select('*').order('settore').order('lista').order('seq');
   S.articoli = data || [];
 }
+async function caricaUM(){
+  const { data } = await sb.from('ord_um').select('*').order('seq');
+  S.um = (data||[]).map(u=>u.valore);
+  if(!S.um.length) S.um=['Pz','Kg','Co','Lt'];
+}
 async function caricaOrdini(){
-  const { data } = await sb.from('ord_ordini').select('*').order('data',{ascending:false});
+  const { data } = await sb.from('ord_ordini').select('*').is('eliminato_il',null).order('data',{ascending:false});
   S.ordini = data || [];
+}
+async function svuotaCestinoVecchio(){
+  const limite = new Date(Date.now() - GG_CESTINO*86400000).toISOString();
+  await sb.from('ord_ordini').delete().not('eliminato_il','is',null).lt('eliminato_il',limite);
 }
 
 /* ---------------- NAV ---------------- */
-$('#btn-back').onclick = () => { if(confermaUscita()) vistaOrdini(); };
-$('#btn-menu').onclick = () => menu();
-
-function confermaUscita(){
+$('#btn-back').onclick = ()=>{ if(uscita()) vistaOrdini(); };
+$('#btn-menu').onclick = ()=>menu();
+function uscita(){
   if(S.dirty.size && !confirm('Ci sono '+S.dirty.size+' modifiche non salvate. Uscire comunque?')) return false;
   S.dirty.clear(); return true;
 }
 function menu(){
-  const v = [
-    ['ordini','📋 Ordini'],
-    ['anagrafica','📖 Anagrafica articoli'],
-    isResp() ? ['utenti','👥 Utenti e accessi'] : null,
-    ['logout','🚪 Esci']
-  ].filter(Boolean);
-  modal('Menu', v.map(([k,l])=>`<button class="btn ghost full" style="margin-bottom:8px" data-go="${k}">${l}</button>`).join(''), sheet=>{
-    sheet.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
+  const v=[['ordini','📋 Ordini'],['cestino','🗑 Cestino'],['anagrafica','📖 Anagrafica articoli'],
+    vedeListino()?['um','📏 Unità di misura']:null, isMgr()?['utenti','👥 Utenti e accessi']:null,
+    ['logout','🚪 Esci']].filter(Boolean);
+  modal('Menu', v.map(([k,l])=>`<button class="btn ghost full" style="margin-bottom:8px" data-go="${k}">${l}</button>`).join(''),
+    sh=>sh.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
       chiudiModal();
       if(b.dataset.go==='logout'){ localStorage.removeItem('gm_ordini_code'); location.reload(); return; }
-      if(!confermaUscita()) return;
-      if(b.dataset.go==='ordini') vistaOrdini();
-      if(b.dataset.go==='anagrafica') vistaAnagrafica();
-      if(b.dataset.go==='utenti') vistaUtenti();
-    });
-  });
-}
-
-function tabsSettori(onclick){
-  const t = $('#sector-tabs');
-  const mie = S.user.settori;
-  if(mie.length<2 && !(S.settore==='sala_vini')){ t.innerHTML=''; return; }
-  let html = mie.map(s=>`<button class="tab ${S.settore===s?'on':''}" data-s="${s}">${SETTORI[s].nome}</button>`).join('');
-  if(S.settore==='sala_vini' && onclick){
-    html += SETTORI.sala_vini.liste.map(l=>`<button class="tab ${S.lista===l?'on':''}" data-l="${l}">${l}</button>`).join('');
-  }
-  t.innerHTML = html;
-  if(!onclick){ t.innerHTML=''; return; }
-  t.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ S.settore=b.dataset.s; S.lista=null; S.filtro=null; onclick(); });
-  t.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{ S.lista = S.lista===b.dataset.l ? null : b.dataset.l; S.filtro=null; onclick(); });
+      if(!uscita()) return;
+      ({ordini:vistaOrdini, cestino:vistaCestino, anagrafica:vistaAnagrafica, um:vistaUM, utenti:vistaUtenti})[b.dataset.go]();
+    }));
 }
 
 /* ============================================================
-   VISTA 1 — ELENCO ORDINI
+   ELENCO ORDINI
    ============================================================ */
 async function vistaOrdini(){
   S.view='ordini'; S.ordine=null; S.righe={}; S.dirty.clear(); S.alertVisto=false;
-  $('#btn-back').classList.add('hide'); $('#savebar').classList.add('hide');
+  $('#btn-back').classList.add('hide'); $('#savebar').classList.add('hide'); $('#sector-tabs').innerHTML='';
   $('#h-title').textContent='Ordini';
-  $('#h-sub').textContent = S.user.nome + (isResp()?' · responsabile ordini':'');
-  $('#sector-tabs').innerHTML='';
-  $('#main').innerHTML = '<p class="muted">Carico…</p>';
+  $('#h-sub').textContent = S.user.nome + ' · ' + (isMgr()?'manager':isResp()?'responsabile ordini':'operatore');
+  $('#main').innerHTML='<p class="muted">Carico…</p>';
   await caricaOrdini();
-
-  const nuovo = isResp() ? `
-    <div class="card">
-      <label class="f"><span>Nuovo ordine — data</span>
-        <input class="inp" type="date" id="new-date" value="${oggi()}"></label>
-      <button class="btn full" id="btn-new">＋ Crea ordine</button>
-    </div>` : '';
 
   const lista = S.ordini.length ? S.ordini.map(o=>{
     const b = o.stato==='chiuso' ? '<span class="badge b-clo">Chiuso</span>'
             : o.stato==='ordini_chiusi' ? '<span class="badge b-ord">Ordini chiusi</span>'
             : '<span class="badge b-open">Aperto</span>';
-    return `<div class="card" data-o="${o.id}" style="cursor:pointer;display:flex;align-items:center;gap:10px">
+    const mio = puoQta(o) ? '' : '<span class="badge b-lock">🔒 quantità</span>';
+    return `<div class="card" data-o="${o.id}" style="cursor:pointer;display:flex;align-items:center;gap:8px">
       <div style="flex:1">
-        <div class="dsp" style="font-size:17px;font-weight:600">${dataIT(o.data)}</div>
-        <div class="muted">${esc(o.etichetta||'')}</div>
-      </div>${b}<span class="muted">›</span></div>`;
-  }).join('') : '<div class="empty">Nessun ordine. Il responsabile ne crea uno scegliendo la data.</div>';
+        <div class="dsp" style="font-size:17px;font-weight:600">${titoloOrdine(o)}</div>
+        <div class="muted">creato da ${esc(o.creato_nome||'—')}</div>
+      </div>${mio}${b}<span class="muted">›</span></div>`;
+  }).join('') : '<div class="empty">Nessun ordine aperto.</div>';
 
-  $('#main').innerHTML = nuovo + lista;
-  if(isResp()) $('#btn-new').onclick = async () => {
-    const d = $('#new-date').value; if(!d) return;
-    const { data, error } = await sb.from('ord_ordini').insert({ data:d }).select().single();
-    if(error){ alert('Errore: '+error.message); return; }
-    apriOrdine(data);
-  };
+  $('#main').innerHTML = `<button class="btn full" id="btn-new" style="margin-bottom:12px">＋ Nuovo ordine</button>` + lista;
+  $('#btn-new').onclick = nuovoOrdine;
   $('#main').querySelectorAll('[data-o]').forEach(c=>c.onclick=()=>apriOrdine(S.ordini.find(o=>o.id==c.dataset.o)));
 }
 
+function nuovoOrdine(){
+  const mie = S.user.settori;
+  modal('Nuovo ordine', `
+    <label class="f"><span>Data</span><input class="inp" type="date" id="n-data" value="${oggi()}"></label>
+    <label class="f"><span>Settore</span><select class="inp" id="n-set">
+      ${mie.map(s=>`<option value="${s}">${nomeSettore(s)}</option>`).join('')}</select></label>
+    <p class="muted">Una volta creato, solo tu (e il manager) potrete inserire o modificare le quantità di questo ordine.</p>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn ghost" style="flex:1" id="m-x">Annulla</button>
+      <button class="btn" style="flex:1" id="m-ok">Crea ordine</button></div>`,
+    sh=>{
+      sh.querySelector('#m-x').onclick=chiudiModal;
+      sh.querySelector('#m-ok').onclick=async()=>{
+        const rec={ data:sh.querySelector('#n-data').value, settore:sh.querySelector('#n-set').value,
+                    creato_da:S.user.id, creato_nome:S.user.nome };
+        if(!rec.data) return;
+        const { data, error } = await sb.from('ord_ordini').insert(rec).select().single();
+        if(error){
+          alert(error.code==='23505'
+            ? 'Esiste già un ordine per questa data e questo settore. Aprilo dall’elenco.'
+            : 'Errore: '+error.message);
+          return;
+        }
+        chiudiModal(); apriOrdine(data);
+      };
+    });
+}
+
 /* ============================================================
-   VISTA 2 — DETTAGLIO ORDINE
+   DETTAGLIO ORDINE
    ============================================================ */
 async function apriOrdine(o){
-  S.ordine=o; S.view='ordine'; S.dirty.clear(); S.righe={}; S.q=''; S.filtro=null; S.soloQta=false;
+  S.ordine=o; S.view='ordine'; S.dirty.clear(); S.righe={}; S.q=''; S.fCat=null; S.fPos=null; S.soloQta=false;
+  S.lista = SETTORI[o.settore].liste.length>1 ? null : SETTORI[o.settore].liste[0];
   const { data } = await sb.from('ord_righe').select('*').eq('ordine_id',o.id);
   (data||[]).forEach(r=>{ if(r.articolo_id) S.righe[r.articolo_id]=r; });
   $('#btn-back').classList.remove('hide');
   renderOrdine();
-  if(isResp() && !S.alertVisto) alertPrezzi();
+  if(vedeListino() && !S.alertVisto) alertPrezzi();
 }
 
 function riga(a){
-  return S.righe[a.id] || (S.righe[a.id] = {
-    ordine_id:S.ordine.id, articolo_id:a.id, nome_snapshot:a.nome, settore:a.settore, lista:a.lista,
-    quantita:null, qta_um:a.um||'Pz', ordinato:false, consegnato:false, note_riga:null, operatore:S.user.nome
-  });
+  return S.righe[a.id] || (S.righe[a.id]={ ordine_id:S.ordine.id, articolo_id:a.id, nome_snapshot:a.nome,
+    settore:a.settore, lista:a.lista, quantita:null, qta_um:a.um||S.um[0],
+    ordinato:false, consegnato:false, note_riga:null, operatore:S.user.nome });
 }
 
 function articoliVisibili(){
   return S.articoli.filter(a=>{
-    if(a.settore!==S.settore) return false;
+    if(a.settore!==S.ordine.settore) return false;
     if(!a.attivo && !(S.righe[a.id]?.quantita>0)) return false;
     if(S.lista && a.lista!==S.lista) return false;
-    if(S.filtro && (a.categoria||a.posizione)!==S.filtro && a.categoria!==S.filtro && a.posizione!==S.filtro) return false;
+    if(S.fCat && a.categoria!==S.fCat) return false;
+    if(S.fPos && a.posizione!==S.fPos) return false;
     if(S.soloQta && !(S.righe[a.id]?.quantita>0)) return false;
     if(S.q){
       const t=(a.nome+' '+(a.categoria||'')+' '+(a.posizione||'')+' '+(a.produttore||'')+' '+(a.venditore_primario||'')).toLowerCase();
@@ -312,48 +317,66 @@ function articoliVisibili(){
 }
 
 function renderOrdine(){
-  const o=S.ordine;
-  $('#h-title').textContent = 'Ordine ' + dataIT(o.data);
-  $('#h-sub').textContent = (o.stato==='chiuso'?'Chiuso':o.stato==='ordini_chiusi'?'Ordini chiusi · scarichi in corso':'Aperto') + ' · ' + S.user.nome;
-  tabsSettori(renderOrdine);
+  const o=S.ordine, editabile=puoQta(o);
+  $('#h-title').textContent = titoloOrdine(o);
+  $('#h-sub').textContent = (o.stato==='chiuso'?'Chiuso':o.stato==='ordini_chiusi'?'Ordini chiusi · scarichi in corso':'Aperto')
+    + ' · creato da ' + (o.creato_nome||'—') + (editabile?'':' · quantità in sola lettura');
 
+  // sotto-liste (Vini / Sala)
+  const liste = SETTORI[o.settore].liste;
+  const t=$('#sector-tabs');
+  if(liste.length>1){
+    t.innerHTML = `<button class="tab ${!S.lista?'on':''}" data-l="">Tutto</button>` +
+      liste.map(l=>`<button class="tab ${S.lista===l?'on':''}" data-l="${l}">${l}</button>`).join('');
+    t.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{ S.lista=b.dataset.l||null; S.fCat=null; S.fPos=null; renderOrdine(); });
+  } else t.innerHTML='';
+
+  const base = S.articoli.filter(a=>a.settore===o.settore && a.attivo && (!S.lista||a.lista===S.lista));
+  const cats = [...new Set(base.map(a=>a.categoria).filter(Boolean))].sort();
+  const poss = [...new Set(base.map(a=>a.posizione).filter(Boolean))].sort();
   const art = articoliVisibili();
-  const gruppi = [...new Set(S.articoli.filter(a=>a.settore===S.settore && a.attivo && (!S.lista||a.lista===S.lista)).map(a=>a.categoria).filter(Boolean))].sort();
 
-  const azioni = isResp() ? `
-    <div class="card" style="display:flex;gap:8px">
-      <button class="btn ghost" style="flex:1" id="btn-fo">✓ Fine ordini</button>
-      <button class="btn ghost" style="flex:1" id="btn-fs">📦 Fine scarichi</button>
-    </div>` : '';
+  const azioni = [];
+  if(puoFlaggare()) azioni.push(`<button class="btn ghost" style="flex:1" id="btn-fo">✓ Fine ordini</button>
+                                 <button class="btn ghost" style="flex:1" id="btn-fs">📦 Fine scarichi</button>`);
+  if(puoCancellare(o)) azioni.push(`<button class="btn warn" id="btn-del">🗑</button>`);
 
   $('#main').innerHTML = `
-    ${azioni}
+    ${azioni.length?`<div class="card" style="display:flex;gap:8px">${azioni.join('')}</div>`:''}
+    ${(!isMgr() && !puoCancellare(o) && o.creato_da===S.user.id)
+      ? '<p class="muted" style="margin:-4px 0 10px">Finestra di cancellazione scaduta (20 minuti). Solo il manager può cancellare questo ordine.</p>':''}
+    ${puoCancellare(o) && !isMgr() ? `<p class="muted" style="margin:-4px 0 10px">Cancellabile ancora per ${minutiRimasti(o)} min.</p>`:''}
     <input class="inp" id="q" placeholder="🔍 Cerca articolo…" value="${esc(S.q)}" style="margin-bottom:10px">
-    <div class="chipbar">
-      <button class="chip ${!S.filtro&&!S.soloQta?'on':''}" data-f="">Tutti (${art.length})</button>
-      <button class="chip ${S.soloQta?'on':''}" data-f="__qta">Solo richiesti</button>
-      ${gruppi.map(g=>`<button class="chip ${S.filtro===g?'on':''}" data-f="${esc(g)}">${esc(g)}</button>`).join('')}
-    </div>
-    <div id="list">${art.map(cardArticolo).join('') || '<div class="empty">Nessun articolo con questi filtri.</div>'}</div>`;
+    <div class="flt"><div class="flt-lab">Settore merceologico</div><div class="chipbar">
+      <button class="chip ${!S.fCat&&!S.soloQta?'on':''}" data-c="">Tutti (${art.length})</button>
+      <button class="chip ${S.soloQta?'on':''}" data-c="__qta">Solo richiesti</button>
+      ${cats.map(c=>`<button class="chip ${S.fCat===c?'on':''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}
+    </div></div>
+    ${poss.length?`<div class="flt"><div class="flt-lab">Posizione</div><div class="chipbar">
+      <button class="chip pos ${!S.fPos?'on':''}" data-p="">Tutte</button>
+      ${poss.map(p=>`<button class="chip pos ${S.fPos===p?'on':''}" data-p="${esc(p)}">${esc(p)}</button>`).join('')}
+    </div></div>`:''}
+    <div id="list">${art.map(cardArticolo).join('')||'<div class="empty">Nessun articolo con questi filtri.</div>'}</div>`;
 
-  $('#q').oninput = e => { S.q=e.target.value; const l=$('#list'); l.innerHTML = articoliVisibili().map(cardArticolo).join('')||'<div class="empty">Nessun risultato.</div>'; bindRighe(); };
-  $('#main').querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{
-    const f=b.dataset.f;
-    if(f==='__qta'){ S.soloQta=!S.soloQta; S.filtro=null; }
-    else { S.filtro = f||null; S.soloQta=false; }
+  $('#q').oninput=e=>{ S.q=e.target.value; $('#list').innerHTML=articoliVisibili().map(cardArticolo).join('')||'<div class="empty">Nessun risultato.</div>'; bindRighe(); };
+  $('#main').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{
+    const c=b.dataset.c;
+    if(c==='__qta'){ S.soloQta=!S.soloQta; S.fCat=null; } else { S.fCat=c||null; S.soloQta=false; }
     renderOrdine();
   });
-  if(isResp()){ $('#btn-fo').onclick=fineOrdini; $('#btn-fs').onclick=fineScarichi; }
-  bindRighe();
-  aggiornaSaveBar();
+  $('#main').querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{ S.fPos=b.dataset.p||null; renderOrdine(); });
+  if(puoFlaggare()){ $('#btn-fo').onclick=fineOrdini; $('#btn-fs').onclick=fineScarichi; }
+  if(puoCancellare(o)) $('#btn-del').onclick=()=>cancellaOrdine(o);
+  bindRighe(); aggiornaSaveBar();
 }
 
 function cardArticolo(a){
-  const r = S.righe[a.id] || {};
-  const noPrice = isResp() && (a.prezzo===null || a.prezzo===undefined);
+  const r=S.righe[a.id]||{}, o=S.ordine;
+  const editQ = puoQta(o), editF = puoFlaggare();
+  const noPrice = vedeListino() && (a.prezzo===null||a.prezzo===undefined);
   const has = r.quantita>0;
   const meta = [
-    a.posizione && `<b>${esc(a.posizione)}</b>`,
+    a.posizione && `<span class="pos">${esc(a.posizione)}</span>`,
     a.categoria && esc(a.categoria),
     a.annata && 'Annata '+esc(a.annata),
     a.produttore && esc(a.produttore),
@@ -361,18 +384,16 @@ function cardArticolo(a){
     a.anticipo && 'anticipo '+esc(a.anticipo),
     !a.attivo && '<span class="badge b-warn">eliminato</span>'
   ].filter(Boolean).join(' · ');
-  const listino = isResp() ? `<div class="art-listino">
-      ${noPrice ? '<span class="badge b-warn">⚠ senza prezzo</span>'
-                : `<span>💶 <b>${a.prezzo.toLocaleString('it-IT',{minimumFractionDigits:2})} €</b>${a.prezzo_um?'/'+esc(a.prezzo_um):''}</span>`}
+  const listino = vedeListino() ? `<div class="art-listino">
+      ${noPrice?'<span class="badge b-warn">⚠ senza prezzo</span>'
+               :`<span>💶 <b>${a.prezzo.toLocaleString('it-IT',{minimumFractionDigits:2})} €</b>${a.prezzo_um?'/'+esc(a.prezzo_um):''}</span>`}
       ${a.venditore_primario?`<span>🏷 ${esc(a.venditore_primario)}</span>`:''}
       ${a.venditore_alternativo?`<span class="muted">alt. ${esc(a.venditore_alternativo)}</span>`:''}
       ${a.codice?`<span class="muted">cod. ${esc(a.codice)}</span>`:''}
-      ${a.tipo_consegna?`<span class="muted">${esc(a.tipo_consegna)}</span>`:''}
-    </div>` : '';
-  const flags = isResp() ? `<div class="flags">
+      ${a.tipo_consegna?`<span class="muted">${esc(a.tipo_consegna)}</span>`:''}</div>`:'';
+  const flags = editF ? `<div class="flags">
       <button class="flag ${r.ordinato?'on-ord':''}" data-flag="ordinato" data-id="${a.id}">${r.ordinato?'✓':'○'} Ordinato</button>
-      <button class="flag ${r.consegnato?'on-con':''}" data-flag="consegnato" data-id="${a.id}">${r.consegnato?'✓':'○'} Consegnato</button>
-    </div>` : '';
+      <button class="flag ${r.consegnato?'on-con':''}" data-flag="consegnato" data-id="${a.id}">${r.consegnato?'✓':'○'} Consegnato</button></div>`:'';
   return `<div class="art ${has?'filled':''} ${noPrice?'noprice':''}" id="art-${a.id}">
     <div class="art-top">
       <div style="flex:1;min-width:0">
@@ -381,52 +402,51 @@ function cardArticolo(a){
       </div>
       <div class="qty">
         <input type="number" inputmode="decimal" step="any" min="0" placeholder="0"
-               value="${r.quantita??''}" class="${has?'has':''}" data-qta="${a.id}">
-        <select data-um="${a.id}">${UM.map(u=>`<option ${(r.qta_um||a.um)===u?'selected':''}>${u}</option>`).join('')}</select>
+          value="${r.quantita??''}" class="${has?'has':''}" data-qta="${a.id}" ${editQ?'':'disabled'}>
+        <select data-um="${a.id}" ${editQ?'':'disabled'}>
+          ${S.um.map(u=>`<option ${(r.qta_um||a.um)===u?'selected':''}>${u}</option>`).join('')}</select>
       </div>
     </div>
     ${a.note?`<div class="muted" style="margin-top:6px">📝 ${esc(a.note)}</div>`:''}
-    ${listino}
-    ${flags}
-    <div class="notebox"><input placeholder="Nota per questo ordine…" value="${esc(r.note_riga||'')}" data-note="${a.id}"></div>
+    ${listino}${flags}
+    <div class="notebox"><input placeholder="Nota per questo ordine…" value="${esc(r.note_riga||'')}" data-note="${a.id}" ${editQ?'':'disabled'}></div>
   </div>`;
 }
 
 function bindRighe(){
+  const art = id => S.articoli.find(x=>x.id==id);
   $('#main').querySelectorAll('[data-qta]').forEach(i=>i.onchange=e=>{
-    const a=S.articoli.find(x=>x.id==i.dataset.qta), r=riga(a);
-    const v=e.target.value===''?null:parseFloat(e.target.value);
-    r.quantita = (v===null||isNaN(v))?null:v; r.operatore=S.user.nome;
+    const a=art(i.dataset.qta), r=riga(a), v=e.target.value===''?null:parseFloat(e.target.value);
+    r.quantita=(v===null||isNaN(v))?null:v; r.operatore=S.user.nome;
     e.target.classList.toggle('has', r.quantita>0);
     document.getElementById('art-'+a.id).classList.toggle('filled', r.quantita>0);
     S.dirty.add(a.id); aggiornaSaveBar();
   });
   $('#main').querySelectorAll('[data-um]').forEach(s=>s.onchange=e=>{
-    const a=S.articoli.find(x=>x.id==s.dataset.um); riga(a).qta_um=e.target.value; S.dirty.add(a.id); aggiornaSaveBar();
+    const a=art(s.dataset.um); riga(a).qta_um=e.target.value; S.dirty.add(a.id); aggiornaSaveBar();
   });
   $('#main').querySelectorAll('[data-note]').forEach(i=>i.onchange=e=>{
-    const a=S.articoli.find(x=>x.id==i.dataset.note); riga(a).note_riga=e.target.value||null; S.dirty.add(a.id); aggiornaSaveBar();
+    const a=art(i.dataset.note); riga(a).note_riga=e.target.value||null; S.dirty.add(a.id); aggiornaSaveBar();
   });
   $('#main').querySelectorAll('[data-flag]').forEach(b=>b.onclick=()=>{
-    const a=S.articoli.find(x=>x.id==b.dataset.id), r=riga(a), f=b.dataset.flag;
+    const a=art(b.dataset.id), r=riga(a), f=b.dataset.flag;
     r[f]=!r[f];
-    if(f==='ordinato'){ r.ordinato_il = r.ordinato?new Date().toISOString():null; if(!r.ordinato){ r.consegnato=false; r.consegnato_il=null; } }
-    if(f==='consegnato'){ r.consegnato_il = r.consegnato?new Date().toISOString():null; }
+    if(f==='ordinato'){ r.ordinato_il=r.ordinato?new Date().toISOString():null; if(!r.ordinato){ r.consegnato=false; r.consegnato_il=null; } }
+    if(f==='consegnato') r.consegnato_il=r.consegnato?new Date().toISOString():null;
     S.dirty.add(a.id);
     const p=b.parentElement;
-    p.querySelector('[data-flag="ordinato"]').className='flag '+(r.ordinato?'on-ord':'');
-    p.querySelector('[data-flag="ordinato"]').textContent=(r.ordinato?'✓':'○')+' Ordinato';
-    p.querySelector('[data-flag="consegnato"]').className='flag '+(r.consegnato?'on-con':'');
-    p.querySelector('[data-flag="consegnato"]').textContent=(r.consegnato?'✓':'○')+' Consegnato';
+    const bo=p.querySelector('[data-flag="ordinato"]'), bc=p.querySelector('[data-flag="consegnato"]');
+    bo.className='flag '+(r.ordinato?'on-ord':''); bo.textContent=(r.ordinato?'✓':'○')+' Ordinato';
+    bc.className='flag '+(r.consegnato?'on-con':''); bc.textContent=(r.consegnato?'✓':'○')+' Consegnato';
     aggiornaSaveBar();
   });
 }
 
 function aggiornaSaveBar(){
   const b=$('#savebar');
-  if(S.view!=='ordine'){ b.classList.add('hide'); return; }
+  if(S.view!=='ordine' || (!puoQta(S.ordine) && !puoFlaggare())){ b.classList.add('hide'); return; }
   b.classList.remove('hide');
-  $('#save-cnt').innerHTML = S.dirty.size ? `<b>${S.dirty.size}</b> modifiche da salvare` : 'Tutto salvato';
+  $('#save-cnt').innerHTML = S.dirty.size?`<b>${S.dirty.size}</b> modifiche da salvare`:'Tutto salvato';
   $('#btn-save').disabled = !S.dirty.size;
 }
 
@@ -437,17 +457,16 @@ $('#btn-save').onclick = async () => {
     const r=S.righe[id];
     const vuota = !(r.quantita>0) && !r.ordinato && !r.consegnato && !r.note_riga;
     if(vuota && r.id) del.push(r.id);
-    else if(!vuota) up.push({
-      id:r.id, ordine_id:r.ordine_id, articolo_id:r.articolo_id, nome_snapshot:r.nome_snapshot,
-      settore:r.settore, lista:r.lista, quantita:r.quantita, qta_um:r.qta_um,
-      ordinato:r.ordinato, ordinato_il:r.ordinato_il||null, consegnato:r.consegnato, consegnato_il:r.consegnato_il||null,
-      note_riga:r.note_riga, operatore:r.operatore, aggiornato_il:new Date().toISOString()
-    });
+    else if(!vuota) up.push({ id:r.id, ordine_id:r.ordine_id, articolo_id:r.articolo_id, nome_snapshot:r.nome_snapshot,
+      settore:r.settore, lista:r.lista, quantita:r.quantita, qta_um:r.qta_um, ordinato:r.ordinato,
+      ordinato_il:r.ordinato_il||null, consegnato:r.consegnato, consegnato_il:r.consegnato_il||null,
+      note_riga:r.note_riga, operatore:r.operatore, aggiornato_il:new Date().toISOString() });
   }
   let err=null;
-  if(del.length){ const {error}=await sb.from('ord_righe').delete().in('id',del); if(error) err=error; del.forEach(id=>{ const k=Object.keys(S.righe).find(k=>S.righe[k].id===id); if(k) delete S.righe[k]; }); }
+  if(del.length){ const {error}=await sb.from('ord_righe').delete().in('id',del); if(error) err=error;
+    del.forEach(id=>{ const k=Object.keys(S.righe).find(k=>S.righe[k].id===id); if(k) delete S.righe[k]; }); }
   if(up.length){
-    const rows = up.map(r=>{ const c={...r}; if(!c.id) delete c.id; return c; });
+    const rows=up.map(r=>{ const c={...r}; if(!c.id) delete c.id; return c; });
     const { data, error } = await sb.from('ord_righe').upsert(rows,{onConflict:'ordine_id,articolo_id'}).select();
     if(error) err=error; else (data||[]).forEach(r=>{ S.righe[r.articolo_id]=r; });
   }
@@ -456,48 +475,95 @@ $('#btn-save').onclick = async () => {
   S.dirty.clear(); aggiornaSaveBar(); toast('Salvato');
 };
 
+/* ---------------- CANCELLAZIONE ---------------- */
+function cancellaOrdine(o){
+  const tardi = isMgr() && !( o.creato_da===S.user.id && (Date.now()-new Date(o.creato_il).getTime())<MIN_CANC*60000 );
+  modal('Cancellare l\'ordine?', `
+    <p><b>${titoloOrdine(o)}</b> — creato da ${esc(o.creato_nome||'—')}.</p>
+    <p class="muted">Finisce nel cestino e resta recuperabile per ${GG_CESTINO} giorni. Dopo, viene eliminato definitivamente.</p>
+    ${tardi?'<p class="muted">Stai cancellando fuori dalla finestra dei 20 minuti: puoi farlo perché sei manager.</p>':''}
+    <label class="f"><span>Conferma col tuo codice personale</span>
+      <input class="inp" type="password" id="c-pwd" autocomplete="off"></label>
+    <p id="c-err" class="muted hide" style="color:var(--warn)"></p>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn ghost" style="flex:1" id="m-x">Annulla</button>
+      <button class="btn warn" style="flex:1" id="m-ok">Sposta nel cestino</button></div>`,
+    sh=>{
+      sh.querySelector('#m-x').onclick=chiudiModal;
+      sh.querySelector('#m-ok').onclick=async()=>{
+        if(sh.querySelector('#c-pwd').value.trim()!==S.user.codice){
+          const e=sh.querySelector('#c-err'); e.textContent='Codice errato.'; e.classList.remove('hide'); return;
+        }
+        const { error } = await sb.from('ord_ordini')
+          .update({ eliminato_il:new Date().toISOString(), eliminato_da:S.user.nome }).eq('id',o.id);
+        if(error){ alert('Errore: '+error.message); return; }
+        chiudiModal(); vistaOrdini(); toast('Ordine spostato nel cestino');
+      };
+    });
+}
+
+/* ---------------- CESTINO ---------------- */
+async function vistaCestino(){
+  S.view='cestino'; $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide'); $('#sector-tabs').innerHTML='';
+  $('#h-title').textContent='Cestino';
+  $('#h-sub').textContent=`Gli ordini restano ${GG_CESTINO} giorni, poi spariscono`;
+  const { data } = await sb.from('ord_ordini').select('*').not('eliminato_il','is',null).order('eliminato_il',{ascending:false});
+  let lista = data||[];
+  if(!isMgr() && !isResp()) lista = lista.filter(o=>o.creato_da===S.user.id);
+  $('#main').innerHTML = lista.length ? lista.map(o=>{
+    const gg = Math.max(0, GG_CESTINO - Math.floor((Date.now()-new Date(o.eliminato_il).getTime())/86400000));
+    const puoRip = isMgr() || o.creato_da===S.user.id;
+    return `<div class="card" style="display:flex;align-items:center;gap:10px">
+      <div style="flex:1">
+        <div class="dsp" style="font-size:16px;font-weight:600">${titoloOrdine(o)}</div>
+        <div class="muted">cancellato da ${esc(o.eliminato_da||'—')} · resta ancora ${gg} ${gg===1?'giorno':'giorni'}</div>
+      </div>
+      ${puoRip?`<button class="btn ghost" data-r="${o.id}">↩ Ripristina</button>`:'<span class="badge b-lock">🔒</span>'}
+    </div>`;
+  }).join('') : '<div class="empty">Il cestino è vuoto.</div>';
+  $('#main').querySelectorAll('[data-r]').forEach(b=>b.onclick=async()=>{
+    const { error } = await sb.from('ord_ordini').update({eliminato_il:null, eliminato_da:null}).eq('id',b.dataset.r);
+    if(error){ alert(error.code==='23505' ? 'Esiste già un ordine attivo per quella data e settore: non posso ripristinarlo.' : 'Errore: '+error.message); return; }
+    vistaCestino(); toast('Ordine ripristinato');
+  });
+}
+
 /* ---------------- ALERT PREZZI ---------------- */
 function alertPrezzi(){
   S.alertVisto=true;
-  const senza = S.articoli.filter(a=>a.attivo && (a.prezzo===null||a.prezzo===undefined));
+  const senza = S.articoli.filter(a=>a.attivo && a.settore===S.ordine.settore && (a.prezzo===null||a.prezzo===undefined));
   if(!senza.length) return;
-  const perSettore = {};
-  senza.forEach(a=>{ const k=SETTORI[a.settore]?.nome||a.settore; perSettore[k]=(perSettore[k]||0)+1; });
   modal('⚠ Articoli senza prezzo',
-    `<p>Ci sono <b>${senza.length} articoli</b> senza prezzo a listino. Nell'elenco sono evidenziati in rosso.</p>
-     <div class="card">${Object.entries(perSettore).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0"><span>${k}</span><b>${v}</b></div>`).join('')}</div>
+    `<p>In <b>${nomeSettore(S.ordine.settore)}</b> ci sono <b>${senza.length} articoli</b> senza prezzo a listino. Nell'elenco sono evidenziati in rosso.</p>
      <button class="btn full" id="m-ok">Ho capito</button>`,
-    sh=>{ sh.querySelector('#m-ok').onclick=chiudiModal; });
+    sh=>sh.querySelector('#m-ok').onclick=chiudiModal);
 }
 
-/* ---------------- FINE ORDINI / FINE SCARICHI ---------------- */
+/* ---------------- FINE ORDINI / SCARICHI ---------------- */
 async function ricaricaRighe(){
   const { data } = await sb.from('ord_righe').select('*').eq('ordine_id',S.ordine.id);
   S.righe={}; (data||[]).forEach(r=>{ if(r.articolo_id) S.righe[r.articolo_id]=r; });
 }
-function nomeSettore(s){ return SETTORI[s]?.nome||s; }
+const rip = r => `<div class="rep-item"><b>${esc(r.nome_snapshot)}</b> — ${r.quantita} ${esc(r.qta_um||'')}</div>`;
 
 async function fineOrdini(){
   if(S.dirty.size){ alert('Salva prima le modifiche in sospeso.'); return; }
   await ricaricaRighe();
-  const mancanti = Object.values(S.righe).filter(r=>r.quantita>0 && !r.ordinato);
-  const tot = Object.values(S.righe).filter(r=>r.quantita>0).length;
+  const manc = Object.values(S.righe).filter(r=>r.quantita>0 && !r.ordinato);
+  const tot  = Object.values(S.righe).filter(r=>r.quantita>0).length;
   const rep = { generato_il:new Date().toISOString(), da:S.user.nome, totale_richiesti:tot,
-                non_ordinati:mancanti.map(r=>({nome:r.nome_snapshot,q:r.quantita,um:r.qta_um,settore:r.settore})) };
-  modal('Fine ordini · ' + dataIT(S.ordine.data),
-    `<p class="muted" style="margin:0 0 12px">${tot} articoli richiesti · <b style="color:${mancanti.length?'var(--warn)':'var(--acc)'}">${mancanti.length} non ordinati</b></p>
-     ${mancanti.length ? mancanti.map(r=>`<div class="rep-item"><b>${esc(r.nome_snapshot)}</b> — ${r.quantita} ${esc(r.qta_um||'')}<div class="m">${nomeSettore(r.settore)}</div></div>`).join('')
-                       : '<div class="card" style="text-align:center;color:var(--acc)"><b>Tutto ordinato.</b> Nessun articolo rimasto indietro.</div>'}
+                non_ordinati:manc.map(r=>({nome:r.nome_snapshot,q:r.quantita,um:r.qta_um})) };
+  modal('Fine ordini · '+titoloOrdine(S.ordine),
+    `<p class="muted" style="margin:0 0 12px">${tot} articoli richiesti · <b style="color:${manc.length?'var(--warn)':'var(--acc)'}">${manc.length} non ordinati</b></p>
+     ${manc.length?manc.map(rip).join(''):'<div class="card" style="text-align:center;color:var(--acc)"><b>Tutto ordinato.</b></div>'}
      <div style="display:flex;gap:8px;margin-top:14px">
        <button class="btn ghost" style="flex:1" id="m-x">Chiudi</button>
-       <button class="btn" style="flex:1" id="m-ok">Conferma fine ordini</button>
-     </div>`,
+       <button class="btn" style="flex:1" id="m-ok">Conferma fine ordini</button></div>`,
     sh=>{
       sh.querySelector('#m-x').onclick=chiudiModal;
       sh.querySelector('#m-ok').onclick=async()=>{
         await sb.from('ord_ordini').update({stato:'ordini_chiusi', chiuso_ordini_il:new Date().toISOString(), report_ordini:rep}).eq('id',S.ordine.id);
-        S.ordine.stato='ordini_chiusi'; S.ordine.report_ordini=rep;
-        chiudiModal(); renderOrdine(); toast('Ordini chiusi');
+        S.ordine.stato='ordini_chiusi'; chiudiModal(); renderOrdine(); toast('Ordini chiusi');
       };
     });
 }
@@ -505,73 +571,86 @@ async function fineOrdini(){
 async function fineScarichi(){
   if(S.dirty.size){ alert('Salva prima le modifiche in sospeso.'); return; }
   await ricaricaRighe();
-  const mancanti = Object.values(S.righe).filter(r=>r.ordinato && !r.consegnato);
-  const nonOrd  = Object.values(S.righe).filter(r=>r.quantita>0 && !r.ordinato);
+  const manc = Object.values(S.righe).filter(r=>r.ordinato && !r.consegnato);
+  const nonOrd = Object.values(S.righe).filter(r=>r.quantita>0 && !r.ordinato);
   const tot = Object.values(S.righe).filter(r=>r.ordinato).length;
   const rep = { generato_il:new Date().toISOString(), da:S.user.nome, totale_ordinati:tot,
-                non_consegnati:mancanti.map(r=>({nome:r.nome_snapshot,q:r.quantita,um:r.qta_um,settore:r.settore})),
-                mai_ordinati:nonOrd.map(r=>({nome:r.nome_snapshot,q:r.quantita,um:r.qta_um,settore:r.settore})) };
-  modal('Fine scarichi · ' + dataIT(S.ordine.data),
-    `<p class="muted" style="margin:0 0 12px">${tot} articoli ordinati · <b style="color:${mancanti.length?'var(--warn)':'var(--acc)'}">${mancanti.length} non consegnati</b></p>
-     ${mancanti.length ? mancanti.map(r=>`<div class="rep-item"><b>${esc(r.nome_snapshot)}</b> — ${r.quantita} ${esc(r.qta_um||'')}<div class="m">${nomeSettore(r.settore)}</div></div>`).join('')
-                       : '<div class="card" style="text-align:center;color:var(--acc)"><b>Tutto consegnato.</b></div>'}
-     ${nonOrd.length ? `<h3 style="margin:16px 0 8px;font-size:14px">Richiesti ma mai ordinati (${nonOrd.length})</h3>`
-        + nonOrd.map(r=>`<div class="rep-item"><b>${esc(r.nome_snapshot)}</b> — ${r.quantita} ${esc(r.qta_um||'')}<div class="m">${nomeSettore(r.settore)}</div></div>`).join('') : ''}
+                non_consegnati:manc.map(r=>({nome:r.nome_snapshot,q:r.quantita,um:r.qta_um})),
+                mai_ordinati:nonOrd.map(r=>({nome:r.nome_snapshot,q:r.quantita,um:r.qta_um})) };
+  modal('Fine scarichi · '+titoloOrdine(S.ordine),
+    `<p class="muted" style="margin:0 0 12px">${tot} articoli ordinati · <b style="color:${manc.length?'var(--warn)':'var(--acc)'}">${manc.length} non consegnati</b></p>
+     ${manc.length?manc.map(rip).join(''):'<div class="card" style="text-align:center;color:var(--acc)"><b>Tutto consegnato.</b></div>'}
+     ${nonOrd.length?`<h3 style="margin:16px 0 8px;font-size:14px">Richiesti ma mai ordinati (${nonOrd.length})</h3>`+nonOrd.map(rip).join(''):''}
      <div style="display:flex;gap:8px;margin-top:14px">
        <button class="btn ghost" style="flex:1" id="m-x">Chiudi</button>
-       <button class="btn" style="flex:1" id="m-ok">Conferma fine scarichi</button>
-     </div>`,
+       <button class="btn" style="flex:1" id="m-ok">Conferma fine scarichi</button></div>`,
     sh=>{
       sh.querySelector('#m-x').onclick=chiudiModal;
       sh.querySelector('#m-ok').onclick=async()=>{
         await sb.from('ord_ordini').update({stato:'chiuso', chiuso_scarichi_il:new Date().toISOString(), report_scarichi:rep}).eq('id',S.ordine.id);
-        S.ordine.stato='chiuso'; S.ordine.report_scarichi=rep;
-        chiudiModal(); renderOrdine(); toast('Scarichi chiusi');
+        S.ordine.stato='chiuso'; chiudiModal(); renderOrdine(); toast('Scarichi chiusi');
       };
     });
 }
 
-/* ============================================================
-   VISTA 3 — ANAGRAFICA (tutti i campi modificabili)
-   ============================================================ */
+/* ---------------- UNITÀ DI MISURA ---------------- */
+async function vistaUM(){
+  S.view='um'; $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide'); $('#sector-tabs').innerHTML='';
+  $('#h-title').textContent='Unità di misura';
+  $('#h-sub').textContent='Il menù a tendina delle quantità';
+  const { data } = await sb.from('ord_um').select('*').order('seq');
+  $('#main').innerHTML = `
+    <div class="card"><label class="f"><span>Aggiungi unità</span>
+      <div style="display:flex;gap:8px"><input class="inp" id="um-new" placeholder="es. Cartone">
+      <button class="btn" id="um-add">Aggiungi</button></div></label></div>
+    ${(data||[]).map(u=>`<div class="umrow"><span>${esc(u.valore)}</span>
+      <button class="btn ghost" data-del="${u.id}" style="padding:6px 12px">🗑</button></div>`).join('')}`;
+  $('#um-add').onclick=async()=>{
+    const v=$('#um-new').value.trim(); if(!v) return;
+    const seq=(data||[]).length+1;
+    const { error } = await sb.from('ord_um').insert({valore:v, seq});
+    if(error){ alert(error.code==='23505'?'Questa unità esiste già.':'Errore: '+error.message); return; }
+    await caricaUM(); vistaUM(); toast('Unità aggiunta');
+  };
+  $('#main').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Eliminare questa unità dal menù?\n\nGli ordini già salvati che la usano restano invariati.')) return;
+    await sb.from('ord_um').delete().eq('id',b.dataset.del);
+    await caricaUM(); vistaUM(); toast('Unità eliminata');
+  });
+}
+
+/* ---------------- ANAGRAFICA ---------------- */
 function vistaAnagrafica(){
-  S.view='anagrafica'; S.q=''; $('#savebar').classList.add('hide');
-  $('#btn-back').classList.remove('hide');
+  S.view='anagrafica'; S.q=''; S.setA=S.setA||S.user.settori[0];
+  $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide');
   $('#h-title').textContent='Anagrafica articoli';
-  $('#h-sub').textContent = isResp()?'Tutti i campi modificabili':'Solo consultazione dei tuoi settori';
-  tabsSettori(vistaAnagrafica);
+  $('#h-sub').textContent = vedeListino()?'Tutti i campi modificabili':'Consultazione';
+  const t=$('#sector-tabs');
+  t.innerHTML = S.user.settori.map(s=>`<button class="tab ${S.setA===s?'on':''}" data-s="${s}">${nomeSettore(s)}</button>`).join('');
+  t.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ S.setA=b.dataset.s; vistaAnagrafica(); });
   render();
   function render(){
-    const art = S.articoli.filter(a=>a.settore===S.settore && (!S.lista||a.lista===S.lista)
-      && (!S.q || a.nome.toLowerCase().includes(S.q.toLowerCase())));
+    const art=S.articoli.filter(a=>a.settore===S.setA && (!S.q||a.nome.toLowerCase().includes(S.q.toLowerCase())));
     $('#main').innerHTML = `
-      ${isResp()?'<button class="btn full" id="btn-add" style="margin-bottom:10px">＋ Nuovo articolo</button>':''}
+      ${vedeListino()?'<button class="btn full" id="btn-add" style="margin-bottom:10px">＋ Nuovo articolo</button>':''}
       <input class="inp" id="q" placeholder="🔍 Cerca…" value="${esc(S.q)}" style="margin-bottom:10px">
       ${art.map(a=>`<div class="art ${!a.attivo?'noprice':''}" data-a="${a.id}" style="cursor:pointer">
         <div class="art-top"><div style="flex:1">
           <div class="art-nm">${esc(a.nome)} ${!a.attivo?'<span class="badge b-warn">eliminato</span>':''}</div>
-          <div class="art-meta">${[a.posizione,a.categoria,a.um,a.prezzo!=null?a.prezzo.toFixed(2)+' €':'<span class="badge b-warn">senza prezzo</span>'].filter(Boolean).join(' · ')}</div>
-        </div><span class="muted">›</span></div></div>`).join('') || '<div class="empty">Nessun articolo.</div>'}`;
+          <div class="art-meta">${[a.posizione?`<span class="pos">${esc(a.posizione)}</span>`:'',a.categoria,a.um,
+            vedeListino()?(a.prezzo!=null?a.prezzo.toFixed(2)+' €':'<span class="badge b-warn">senza prezzo</span>'):''
+          ].filter(Boolean).join(' · ')}</div>
+        </div><span class="muted">›</span></div></div>`).join('')||'<div class="empty">Nessun articolo.</div>'}`;
     $('#q').oninput=e=>{ S.q=e.target.value; render(); };
-    if(isResp()) $('#btn-add').onclick=()=>schedaArticolo(null,render);
+    if(vedeListino()) $('#btn-add').onclick=()=>schedaArticolo(null,render);
     $('#main').querySelectorAll('[data-a]').forEach(c=>c.onclick=()=>schedaArticolo(S.articoli.find(a=>a.id==c.dataset.a),render));
   }
 }
 
 function schedaArticolo(a, done){
-  const nuovo = !a;
-  a = a || { settore:S.settore, lista:S.lista||SETTORI[S.settore].liste[0], attivo:true, seq:999 };
-  const ro = !isResp();     // gli operatori consultano; solo il responsabile modifica
-  const F = (k,l,t='text') => `<label class="f"><span>${l}</span><input class="inp" data-k="${k}" type="${t}" value="${esc(a[k]??'')}" ${ro?'disabled':''}></label>`;
-  const listino = `
-    <h3 style="margin:16px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Listino — visibile solo al responsabile</h3>
-    <div class="grid2">${F('prezzo','Prezzo €','number')}${F('prezzo_um','Prezzo per (U.M.)')}</div>
-    <div class="grid2">${F('venditore_primario','Venditore primario')}${F('venditore_alternativo','Venditore alternativo')}</div>
-    <div class="grid2">${F('codice','Codice')}${F('tipo_consegna','Tipo consegna')}</div>
-    <div class="grid2">${F('cod_vendita','Cod. vendita')}${F('annata','Annata')}</div>
-    ${F('produttore','Produttore')}
-    <div class="grid2">${F('uso1','Settore utilizzo 1')}${F('uso2','Settore utilizzo 2')}</div>
-    ${F('uso3','Settore utilizzo 3')}`;
+  const nuovo=!a, ro=!vedeListino();
+  a = a || { settore:S.setA, lista:SETTORI[S.setA].liste[0], attivo:true, seq:999 };
+  const F=(k,l,t='text')=>`<label class="f"><span>${l}</span><input class="inp" data-k="${k}" type="${t}" value="${esc(a[k]??'')}" ${ro?'disabled':''}></label>`;
   modal(nuovo?'Nuovo articolo':'Scheda articolo', `
     ${F('nome','Nome articolo')}
     <div class="grid2">
@@ -581,33 +660,44 @@ function schedaArticolo(a, done){
         ${['Cucina e pizzeria','Vini','Sala','Bar'].map(l=>`<option ${a.lista===l?'selected':''}>${l}</option>`).join('')}</select></label>
     </div>
     <div class="grid2">${F('categoria','Settore merceologico')}${F('posizione','Posizione / ubicazione')}</div>
-    <div class="grid2">${F('um','U.M.')}${F('minimo_ordine','Minimo ordine')}</div>
+    <div class="grid2">
+      <label class="f"><span>U.M.</span><select class="inp" data-k="um" ${ro?'disabled':''}>
+        ${S.um.map(u=>`<option ${a.um===u?'selected':''}>${u}</option>`).join('')}</select></label>
+      ${F('minimo_ordine','Minimo ordine')}
+    </div>
     <div class="grid2">${F('anticipo','Anticipo ordine (1x1…)')}${F('seq','Ordine in lista','number')}</div>
     <label class="f"><span>Note</span><textarea class="inp" rows="2" data-k="note" ${ro?'disabled':''}>${esc(a.note??'')}</textarea></label>
-    ${isResp()?listino:''}
-    ${isResp()?`<div style="display:flex;gap:8px;margin-top:14px">
-      ${!nuovo?`<button class="btn warn" id="m-del">🗑 Elimina</button>`:''}
-      <button class="btn ghost" style="flex:1" id="m-x">Annulla</button>
-      <button class="btn" style="flex:1" id="m-ok">💾 Salva</button></div>`
-     :`<button class="btn ghost full" id="m-x">Chiudi</button>`}`,
+    ${vedeListino()?`
+      <h3 style="margin:16px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Listino</h3>
+      <div class="grid2">${F('prezzo','Prezzo €','number')}${F('prezzo_um','Prezzo per (U.M.)')}</div>
+      <div class="grid2">${F('venditore_primario','Venditore primario')}${F('venditore_alternativo','Venditore alternativo')}</div>
+      <div class="grid2">${F('codice','Codice')}${F('tipo_consegna','Tipo consegna')}</div>
+      <div class="grid2">${F('cod_vendita','Cod. vendita')}${F('annata','Annata')}</div>
+      ${F('produttore','Produttore')}
+      <div class="grid2">${F('uso1','Settore utilizzo 1')}${F('uso2','Settore utilizzo 2')}</div>
+      ${F('uso3','Settore utilizzo 3')}
+      <div style="display:flex;gap:8px;margin-top:14px">
+        ${!nuovo?'<button class="btn warn" id="m-del">🗑</button>':''}
+        <button class="btn ghost" style="flex:1" id="m-x">Annulla</button>
+        <button class="btn" style="flex:1" id="m-ok">💾 Salva</button></div>`
+    :'<button class="btn ghost full" id="m-x">Chiudi</button>'}`,
    sh=>{
      sh.querySelector('#m-x').onclick=chiudiModal;
-     if(!isResp()) return;
+     if(ro) return;
      if(!nuovo) sh.querySelector('#m-del').onclick=async()=>{
-       if(!confirm('Eliminare "'+a.nome+'"?\n\nSparirà dagli ordini futuri, ma resterà intatto in tutti gli ordini già fatti.')) return;
+       if(!confirm('Eliminare "'+a.nome+'"?\n\nSparisce dagli ordini futuri, ma resta intatto in tutti gli ordini già fatti.')) return;
        await sb.from('ord_articoli').update({attivo:false}).eq('id',a.id);
        await caricaArticoli(); chiudiModal(); done(); toast('Articolo eliminato');
      };
      sh.querySelector('#m-ok').onclick=async()=>{
        const rec={...a};
        sh.querySelectorAll('[data-k]').forEach(i=>{
-         let v=i.value.trim?i.value.trim():i.value;
+         let v = i.value; if(typeof v==='string') v=v.trim();
          if(i.type==='number') v = v===''?null:parseFloat(v);
          rec[i.dataset.k] = v===''?null:v;
        });
        if(!rec.nome){ alert('Il nome è obbligatorio.'); return; }
-       rec.aggiornato_il=new Date().toISOString();
-       delete rec.creato_il;
+       rec.aggiornato_il=new Date().toISOString(); delete rec.creato_il;
        const { error } = rec.id ? await sb.from('ord_articoli').update(rec).eq('id',rec.id)
                                 : await sb.from('ord_articoli').insert(rec);
        if(error){ alert('Errore: '+error.message); return; }
@@ -616,22 +706,17 @@ function schedaArticolo(a, done){
    });
 }
 
-/* ============================================================
-   VISTA 4 — UTENTI
-   ============================================================ */
+/* ---------------- UTENTI (solo manager) ---------------- */
 async function vistaUtenti(){
-  S.view='utenti'; $('#savebar').classList.add('hide');
-  $('#btn-back').classList.remove('hide');
+  S.view='utenti'; $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide'); $('#sector-tabs').innerHTML='';
   $('#h-title').textContent='Utenti e accessi'; $('#h-sub').textContent='Chi vede cosa';
-  $('#sector-tabs').innerHTML='';
   const { data } = await sb.from('ord_utenti').select('*').order('id');
-  $('#main').innerHTML = `<button class="btn full" id="btn-addu" style="margin-bottom:10px">＋ Nuovo utente</button>` +
-    (data||[]).map(u=>`<div class="card" data-u="${u.id}" style="cursor:pointer">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="flex:1">
-          <div style="font-weight:600">${esc(u.nome)} ${!u.attivo?'<span class="badge b-warn">disattivato</span>':''}</div>
-          <div class="muted">codice ${esc(u.codice)} · ${u.ruolo==='responsabile'?'responsabile ordini':'operatore'} · ${u.settori.map(nomeSettore).join(', ')||'nessun settore'}</div>
-        </div><span class="muted">›</span></div></div>`).join('');
+  $('#main').innerHTML = '<button class="btn full" id="btn-addu" style="margin-bottom:10px">＋ Nuovo utente</button>' +
+    (data||[]).map(u=>`<div class="card" data-u="${u.id}" style="cursor:pointer;display:flex;align-items:center;gap:10px">
+      <div style="flex:1">
+        <div style="font-weight:600">${esc(u.nome)} ${!u.attivo?'<span class="badge b-warn">disattivato</span>':''}</div>
+        <div class="muted">${u.ruolo} · ${u.settori.map(nomeSettore).join(', ')||'nessun settore'}</div>
+      </div><span class="muted">›</span></div>`).join('');
   $('#btn-addu').onclick=()=>schedaUtente(null);
   $('#main').querySelectorAll('[data-u]').forEach(c=>c.onclick=()=>schedaUtente((data||[]).find(u=>u.id==c.dataset.u)));
 }
@@ -643,8 +728,9 @@ function schedaUtente(u){
     <label class="f"><span>Nome</span><input class="inp" id="u-nome" value="${esc(u.nome)}"></label>
     <label class="f"><span>Codice personale</span><input class="inp" id="u-cod" value="${esc(u.codice)}"></label>
     <label class="f"><span>Ruolo</span><select class="inp" id="u-ruolo">
-      <option value="operatore" ${u.ruolo==='operatore'?'selected':''}>Operatore</option>
-      <option value="responsabile" ${u.ruolo==='responsabile'?'selected':''}>Responsabile ordini</option></select></label>
+      <option value="operatore" ${u.ruolo==='operatore'?'selected':''}>Operatore — crea ordini e inserisce le quantità</option>
+      <option value="responsabile" ${u.ruolo==='responsabile'?'selected':''}>Responsabile ordini — vede tutto, flagga, non tocca le quantità</option>
+      <option value="manager" ${u.ruolo==='manager'?'selected':''}>Manager — accesso completo</option></select></label>
     <label class="f"><span>Settori visibili</span>
       <div class="chipbar" id="u-set">${Object.entries(SETTORI).map(([k,v])=>
         `<button class="chip ${u.settori.includes(k)?'on':''}" data-s="${k}">${v.nome}</button>`).join('')}</div></label>
@@ -656,17 +742,14 @@ function schedaUtente(u){
       <button class="btn" style="flex:1" id="m-ok">💾 Salva</button></div>`,
    sh=>{
      const sel=new Set(u.settori);
-     sh.querySelectorAll('#u-set .chip').forEach(b=>b.onclick=()=>{
-       const k=b.dataset.s; sel.has(k)?sel.delete(k):sel.add(k); b.classList.toggle('on');
-     });
+     sh.querySelectorAll('#u-set .chip').forEach(b=>b.onclick=()=>{ const k=b.dataset.s; sel.has(k)?sel.delete(k):sel.add(k); b.classList.toggle('on'); });
      sh.querySelector('#m-x').onclick=chiudiModal;
      sh.querySelector('#m-ok').onclick=async()=>{
        const rec={ nome:sh.querySelector('#u-nome').value.trim(), codice:sh.querySelector('#u-cod').value.trim(),
                    ruolo:sh.querySelector('#u-ruolo').value, settori:[...sel], attivo:sh.querySelector('#u-att').value==='1' };
        if(!rec.nome||!rec.codice){ alert('Nome e codice sono obbligatori.'); return; }
-       const { error } = u.id ? await sb.from('ord_utenti').update(rec).eq('id',u.id)
-                              : await sb.from('ord_utenti').insert(rec);
-       if(error){ alert('Errore: '+error.message); return; }
+       const { error } = u.id ? await sb.from('ord_utenti').update(rec).eq('id',u.id) : await sb.from('ord_utenti').insert(rec);
+       if(error){ alert(error.code==='23505'?'Questo codice è già usato da un altro utente.':'Errore: '+error.message); return; }
        chiudiModal(); vistaUtenti(); toast('Utente salvato');
      };
    });
@@ -675,14 +758,13 @@ function schedaUtente(u){
 /* ---------------- MODALE + TOAST ---------------- */
 function modal(titolo, html, init){
   const root=$('#modal-root');
-  root.innerHTML = `<div class="ov"><div class="sheet"><h2>${esc(titolo)}</h2><div style="height:10px"></div>${html}</div></div>`;
-  root.querySelector('.ov').onclick = e => { if(e.target.classList.contains('ov')) chiudiModal(); };
+  root.innerHTML=`<div class="ov"><div class="sheet"><h2>${esc(titolo)}</h2><div style="height:10px"></div>${html}</div></div>`;
+  root.querySelector('.ov').onclick=e=>{ if(e.target.classList.contains('ov')) chiudiModal(); };
   if(init) init(root.querySelector('.sheet'));
 }
 function chiudiModal(){ $('#modal-root').innerHTML=''; }
 function toast(t){
-  const d=document.createElement('div');
-  d.textContent=t;
+  const d=document.createElement('div'); d.textContent=t;
   d.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;z-index:70;font-size:14px;box-shadow:0 6px 20px #16202b40';
   document.body.appendChild(d); setTimeout(()=>d.remove(),1800);
 }
