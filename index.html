@@ -159,7 +159,7 @@ const articoliDelSettore = set => {
 };
 const MIN_CANC = 20;      // minuti entro cui il creatore può cancellare
 const GG_CESTINO = 10;    // giorni di permanenza nel cestino
-
+const REPARTI = ['Cucina','Pizzeria','Staff'];
 const SETTORI_ANAG = ['cucina','sala_vini','bar'];   // pizzeria condivide l'anagrafica di cucina
 const settoriAnagUtente = () => {
   const r = [...new Set((S.user?.settori||[]).map(s=>s==='pizzeria'?'cucina':s))].filter(s=>SETTORI_ANAG.includes(s));
