@@ -139,8 +139,8 @@ label.f>span{display:block;font-size:11px;text-transform:uppercase;letter-spacin
 /* ============================================================
    CONFIGURAZIONE
    ============================================================ */
-const SUPABASE_URL = 'https://otxmmlkyoxndcdybtufy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_HQpyom62MSKjBmTa_bisUw_a2m6RE5l';
+const SUPABASE_URL = 'INCOLLA_QUI_LA_URL';
+const SUPABASE_ANON_KEY = 'INCOLLA_QUI_LA_CHIAVE';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -161,7 +161,10 @@ const MIN_CANC = 20;      // minuti entro cui il creatore può cancellare
 const GG_CESTINO = 10;    // giorni di permanenza nel cestino
 
 const SETTORI_ANAG = ['cucina','sala_vini','bar'];   // pizzeria condivide l'anagrafica di cucina
-const settoriAnagUtente = () => [...new Set(S.user.settori.map(s=>s==='pizzeria'?'cucina':s))].filter(s=>SETTORI_ANAG.includes(s));
+const settoriAnagUtente = () => {
+  const r = [...new Set((S.user?.settori||[]).map(s=>s==='pizzeria'?'cucina':s))].filter(s=>SETTORI_ANAG.includes(s));
+  return r.length ? r : ['cucina'];
+};
 const nomeAnag = s => s==='cucina' ? 'Cucina e pizzeria' : nomeSettore(s);
 const S = { user:null, view:'ordini', ordini:[], ordine:null, articoli:[], righe:{}, um:[], chips:[], fornitori:[],
             dirty:new Set(), lista:null, q:'', fRep:null, fCat:null, fPos:null, soloQta:false, alertVisto:false };
@@ -780,7 +783,8 @@ function vistaAnagrafica(){
 
 function schedaArticolo(a, done){
   const nuovo=!a, ro=!vedeListino();
-  a = a || { settore:S.setA, lista:SETTORI[S.setA].liste[0], attivo:true, seq:999 };
+  const setDef = (S.setA && SETTORI_ANAG.includes(S.setA)) ? S.setA : 'cucina';
+  a = a || { settore:setDef, lista:(SETTORI[setDef]?.liste||['Cucina e pizzeria'])[0], reparti:[], attivo:true, seq:999 };
   const F=(k,l,t='text')=>`<label class="f"><span>${l}</span><input class="inp" data-k="${k}" type="${t}" value="${esc(a[k]??'')}" ${ro?'disabled':''}></label>`;
   modal(nuovo?'Nuovo articolo':'Scheda articolo', `
     ${F('nome','Nome articolo')}
