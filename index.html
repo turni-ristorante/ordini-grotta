@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="config.js"></script>
+<script src="logo.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -1025,25 +1026,58 @@ function generaPDF(fornitore, voci, modo){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'mm', format:'a4'});
   const o = S.ordine;
-  doc.setFont('helvetica','bold'); doc.setFontSize(16);
-  doc.text('Grotta Marcello', 14, 18);
-  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(90);
-  doc.text('Ordine ' + dataIT(o.data) + ' — ' + nomeSettore(o.settore), 14, 25);
-  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(0);
-  doc.text('Fornitore: ' + fornitore, 14, 33);
+  const VIOLA = [107,61,92];      // #6B3D5C
+  const GRIGIO = [123,107,117];
+  const pw = doc.internal.pageSize.getWidth();
+  let y = 14;
 
+  // --- logo centrato (piccolo) ---
+  if(typeof GM_LOGO !== 'undefined'){
+    const lw = 42, lh = lw * (typeof GM_LOGO_RATIO!=='undefined'?GM_LOGO_RATIO:0.4269);
+    try { doc.addImage(GM_LOGO, 'JPEG', (pw-lw)/2, y, lw, lh); y += lh + 3; }
+    catch(e){ y += 2; }
+  } else {
+    doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(...VIOLA);
+    doc.text('GROTTA MARCELLO', pw/2, y+6, {align:'center'}); y += 12;
+  }
+  // linea viola
+  doc.setDrawColor(...VIOLA); doc.setLineWidth(0.6);
+  doc.line(16, y, pw-16, y); y += 7;
+
+  // --- intestazione: sinistra dati ordine, destra fornitore ---
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0);
+  doc.text('ORDINE FORNITORE', 16, y);
+  doc.setFont('helvetica','bold'); doc.setTextColor(...VIOLA); doc.setFontSize(11);
+  doc.text(String(fornitore), pw-16, y, {align:'right'});
+  y += 5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...GRIGIO);
+  doc.text('Data ordine: ' + dataIT(o.data), 16, y);
+  const forn = S.fornitori.find(f=>f.nome===fornitore);
+  if(forn?.email){ doc.text(forn.email, pw-16, y, {align:'right'}); }
+  y += 4.5;
+  doc.text('Reparto: ' + nomeSettore(o.settore), 16, y); y += 4.5;
+  doc.text('Compilato da: ' + S.user.nome, 16, y); y += 6;
+
+  // --- tabella: Codice | Prodotto | Q.tà | U.M. | Note ---
   doc.autoTable({
-    startY: 38,
-    head: [['Articolo','Quantità','U.M.','Note']],
-    body: voci.map(({r,a})=>[ r.nome_snapshot, String(r.quantita), r.qta_um||(a?.um||''), r.note_riga||'' ]),
-    styles:{ fontSize:9, cellPadding:2.5 },
-    headStyles:{ fillColor:[11,107,91], textColor:255, fontStyle:'bold' },
-    alternateRowStyles:{ fillColor:[246,245,241] },
-    columnStyles:{ 0:{cellWidth:88}, 1:{cellWidth:22, halign:'right'}, 2:{cellWidth:18}, 3:{cellWidth:54} }
+    startY: y,
+    head: [['Codice','Prodotto','Q.tà','U.M.','Note']],
+    body: voci.map(({r,a})=>[ a?.codice||'', r.nome_snapshot, String(r.quantita), r.qta_um||(a?.um||''), r.note_riga||'' ]),
+    styles:{ fontSize:9, cellPadding:2.6, textColor:[40,40,40] },
+    headStyles:{ fillColor:VIOLA, textColor:255, fontStyle:'bold' },
+    alternateRowStyles:{ fillColor:[242,234,239] },
+    columnStyles:{ 0:{cellWidth:22}, 1:{cellWidth:74}, 2:{cellWidth:14, halign:'right'}, 3:{cellWidth:16}, 4:{cellWidth:52, textColor:GRIGIO, fontSize:8.5} },
+    margin:{ left:16, right:16 }
   });
-  const y = doc.lastAutoTable.finalY + 8;
-  doc.setFontSize(9); doc.setTextColor(120);
-  doc.text(`${voci.length} articoli · documento generato il ${new Date().toLocaleString('it-IT')} da ${S.user.nome}`, 14, y);
+
+  let yf = doc.lastAutoTable.finalY + 6;
+  doc.setFontSize(9); doc.setTextColor(...GRIGIO);
+  doc.text(`${voci.length} ${voci.length===1?'articolo':'articoli'} · generato il ${new Date().toLocaleString('it-IT')}`, 16, yf);
+
+  // piè di pagina
+  const ph = doc.internal.pageSize.getHeight();
+  doc.setFontSize(8); doc.setTextColor(...GRIGIO);
+  doc.text('Grotta Marcello · Rifugio del gusto · Cagliari', pw/2, ph-12, {align:'center'});
 
   const nomeFile = `Ordine_${o.data}_${nomeSettore(o.settore).replace(/\s/g,'')}_${fornitore.replace(/[^\w]/g,'')}.pdf`;
   if(modo==='share' && navigator.share){
