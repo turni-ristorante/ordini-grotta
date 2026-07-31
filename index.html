@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -138,11 +139,17 @@ label.f>span{display:block;font-size:11px;text-transform:uppercase;letter-spacin
 <script>
 /* ============================================================
    CONFIGURAZIONE
+   Le chiavi stanno nel file config.js (caricato prima, nel <head>).
+   Questo file NON contiene chiavi: si puo' ricaricare per intero
+   senza perdere nulla.
    ============================================================ */
-const SUPABASE_URL = 'https://otxmmlkyoxndcdybtufy.supabase.co/';
-const SUPABASE_ANON_KEY = 'sb_publishable_HQpyom62MSKjBmTa_bisUw_a2m6RE5l';
-
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if(typeof GM_CONFIG === 'undefined'){
+  document.body.innerHTML = '<div style="max-width:420px;margin:60px auto;padding:20px;font-family:sans-serif">'
+    + '<h2>Manca il file config.js</h2><p>Carica <b>config.js</b> nella stessa cartella di index.html, '
+    + 'con dentro l\'indirizzo e la chiave del database. Senza, l\'app non puo\' collegarsi.</p></div>';
+  throw new Error('config.js mancante');
+}
+const sb = supabase.createClient(GM_CONFIG.url, GM_CONFIG.key);
 
 const SETTORI = {
   cucina:    { nome:'Cucina',       liste:['Cucina e pizzeria'] },
@@ -159,7 +166,8 @@ const articoliDelSettore = set => {
 };
 const MIN_CANC = 20;      // minuti entro cui il creatore può cancellare
 const GG_CESTINO = 10;    // giorni di permanenza nel cestino
-const REPARTI = ['Cucina','Pizzeria','Staff'];
+
+const REPARTI = ['Cucina','Pizzeria','Staff'];   // reparti del settore cucina
 const SETTORI_ANAG = ['cucina','sala_vini','bar'];   // pizzeria condivide l'anagrafica di cucina
 const settoriAnagUtente = () => {
   const r = [...new Set((S.user?.settori||[]).map(s=>s==='pizzeria'?'cucina':s))].filter(s=>SETTORI_ANAG.includes(s));
