@@ -223,8 +223,18 @@ async function caricaArticoli(){
 }
 async function caricaUM(){
   const { data } = await sb.from('ord_um').select('*').order('seq');
-  S.um = (data||[]).map(u=>u.valore);
-  if(!S.um.length) S.um=['Pz','Kg','Co','Lt'];
+  S.umFull = data || [];
+  S.um = S.umFull.map(u=>u.valore);
+  if(!S.um.length){ S.um=['Pz','Kg','Co','Lt']; S.umFull=S.um.map(v=>({valore:v,settori:['Tutti']})); }
+}
+// unità valide per un dato settore d'ordine (cucina/pizzeria condividono l'anagrafica cucina)
+function umDelSettore(set){
+  const s = set==='pizzeria' ? 'cucina' : set;
+  const list = (S.umFull||[]).filter(u=>{
+    const ss=u.settori||[];
+    return ss.length===0 || ss.includes('Tutti') || ss.includes(s);
+  }).map(u=>u.valore);
+  return list.length ? list : S.um;
 }
 async function caricaChip(){
   const { data } = await sb.from('ord_chip').select('*').order('settore').order('tipo').order('seq').order('valore');
@@ -457,7 +467,7 @@ function cardArticolo(a){
         <input type="number" inputmode="decimal" step="any" min="0" placeholder="0"
           value="${r.quantita??''}" class="${has?'has':''}" data-qta="${a.id}" ${editQ?'':'disabled'}>
         <select data-um="${a.id}" ${editQ?'':'disabled'}>
-          ${S.um.map(u=>`<option ${(r.qta_um||a.um)===u?'selected':''}>${u}</option>`).join('')}</select>
+          ${[...new Set([...(umDelSettore(S.ordine.settore)), ...(r.qta_um?[r.qta_um]:[])])].map(u=>`<option ${(r.qta_um||a.um)===u?'selected':''}>${u}</option>`).join('')}</select>
       </div>
     </div>
     ${a.note?`<div class="muted" style="margin-top:6px">📝 ${esc(a.note)}</div>`:''}
@@ -739,26 +749,67 @@ async function vistaChip(){
 async function vistaUM(){
   S.view='um'; $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide'); $('#sector-tabs').innerHTML='';
   $('#h-title').textContent='Unità di misura';
-  $('#h-sub').textContent='Il menù a tendina delle quantità';
-  const { data } = await sb.from('ord_um').select('*').order('seq');
+  $('#h-sub').textContent='Il menù a tendina delle quantità, per settore';
+  await caricaUM();
+  const SET_OPT = [['Tutti','Tutti i settori'],['cucina','Cucina e pizzeria'],['sala_vini','Sala e vini'],['bar','Bar']];
+  const etichettaSet = ss => (ss||[]).includes('Tutti')||!(ss||[]).length ? 'Tutti i settori'
+      : ss.map(s=>({cucina:'Cucina/Pizzeria',sala_vini:'Sala e vini',bar:'Bar'}[s]||s)).join(', ');
+
   $('#main').innerHTML = `
     <div class="card"><label class="f"><span>Aggiungi unità</span>
-      <div style="display:flex;gap:8px"><input class="inp" id="um-new" placeholder="es. Cartone">
-      <button class="btn" id="um-add">Aggiungi</button></div></label></div>
-    ${(data||[]).map(u=>`<div class="umrow"><span>${esc(u.valore)}</span>
-      <button class="btn ghost" data-del="${u.id}" style="padding:6px 12px">🗑</button></div>`).join('')}`;
+      <div style="display:flex;gap:8px"><input class="inp" id="um-new" placeholder="es. Fusto">
+      <button class="btn" id="um-add">Aggiungi</button></div></label>
+      <div class="muted">La nuova unità nasce valida in tutti i settori: poi puoi restringerla toccandola.</div></div>
+    ${S.umFull.map(u=>`<div class="umrow" data-um="${u.id}" style="cursor:pointer">
+      <span>${esc(u.valore)}</span>
+      <span class="muted" style="margin-right:6px">${esc(etichettaSet(u.settori))}</span>
+      <button class="btn ghost" data-del="${u.id}" style="padding:6px 10px">🗑</button></div>`).join('')}`;
+
   $('#um-add').onclick=async()=>{
     const v=$('#um-new').value.trim(); if(!v) return;
-    const seq=(data||[]).length+1;
-    const { error } = await sb.from('ord_um').insert({valore:v, seq});
+    const { error } = await sb.from('ord_um').insert({valore:v, seq:S.umFull.length+1, settori:['Tutti']});
     if(error){ alert(error.code==='23505'?'Questa unità esiste già.':'Errore: '+error.message); return; }
     await caricaUM(); vistaUM(); toast('Unità aggiunta');
   };
-  $('#main').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+  $('#main').querySelectorAll('[data-um]').forEach(row=>row.onclick=e=>{
+    if(e.target.closest('[data-del]')) return;
+    const u=S.umFull.find(x=>x.id==row.dataset.um); schedaUM(u, SET_OPT);
+  });
+  $('#main').querySelectorAll('[data-del]').forEach(b=>b.onclick=async(e)=>{
+    e.stopPropagation();
     if(!confirm('Eliminare questa unità dal menù?\n\nGli ordini già salvati che la usano restano invariati.')) return;
     await sb.from('ord_um').delete().eq('id',b.dataset.del);
     await caricaUM(); vistaUM(); toast('Unità eliminata');
   });
+}
+
+function schedaUM(u, SET_OPT){
+  const sel = new Set((u.settori&&u.settori.length)?u.settori:['Tutti']);
+  modal('Unità: '+esc(u.valore), `
+    <label class="f"><span>Nome</span><input class="inp" id="um-nome" value="${esc(u.valore)}"></label>
+    <label class="f"><span>In quali ordini compare</span>
+      <div class="chipwrap" id="um-set">${SET_OPT.map(([k,l])=>
+        `<button type="button" class="chip ${sel.has(k)?'on':''}" data-s="${k}">${l}</button>`).join('')}</div>
+      <div class="muted" style="margin-top:5px">Scegli "Tutti i settori" oppure uno o più settori specifici.</div></label>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn ghost" style="flex:1" id="m-x">Annulla</button>
+      <button class="btn" style="flex:1" id="m-ok">💾 Salva</button></div>`,
+   sh=>{
+     sh.querySelectorAll('#um-set .chip').forEach(b=>b.onclick=()=>{
+       const k=b.dataset.s;
+       if(k==='Tutti'){ sel.clear(); sel.add('Tutti'); }
+       else { sel.delete('Tutti'); sel.has(k)?sel.delete(k):sel.add(k); if(!sel.size) sel.add('Tutti'); }
+       sh.querySelectorAll('#um-set .chip').forEach(x=>x.classList.toggle('on', sel.has(x.dataset.s)));
+     });
+     sh.querySelector('#m-x').onclick=chiudiModal;
+     sh.querySelector('#m-ok').onclick=async()=>{
+       const nome=sh.querySelector('#um-nome').value.trim(); if(!nome){ alert('Il nome è obbligatorio.'); return; }
+       const rec={ valore:nome, settori:[...sel] };
+       const { error } = await sb.from('ord_um').update(rec).eq('id',u.id);
+       if(error){ alert(error.code==='23505'?'Esiste già un\'unità con questo nome.':'Errore: '+error.message); return; }
+       await caricaUM(); chiudiModal(); vistaUM(); toast('Unità aggiornata');
+     };
+   });
 }
 
 /* ---------------- ANAGRAFICA ---------------- */
@@ -820,7 +871,7 @@ function schedaArticolo(a, done){
       <div class="muted" style="margin-top:5px">Puoi sceglierne più di uno: l'articolo comparirà in ogni ordine selezionato, con quantità indipendenti.</div></label>
     <div class="grid2">
       <label class="f"><span>U.M.</span><select class="inp" data-k="um" ${ro?'disabled':''}>
-        ${S.um.map(u=>`<option ${a.um===u?'selected':''}>${u}</option>`).join('')}</select></label>
+        ${[...new Set([...(umDelSettore(a.settore)), ...(a.um?[a.um]:[])])].map(u=>`<option ${a.um===u?'selected':''}>${u}</option>`).join('')}</select></label>
       ${F('minimo_ordine','Minimo ordine')}
     </div>
     <div class="grid2">${F('anticipo','Anticipo ordine (1x1…)')}${F('seq','Ordine in lista','number')}</div>
@@ -1170,14 +1221,114 @@ async function vistaFornitori(){
   S.view='fornitori'; $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide'); $('#sector-tabs').innerHTML='';
   $('#h-title').textContent='Fornitori'; $('#h-sub').textContent='Nome ed email per l’invio degli ordini';
   await caricaFornitori();
-  $('#main').innerHTML = '<button class="btn full" id="btn-addf" style="margin-bottom:10px">＋ Nuovo fornitore</button>' +
+  $('#main').innerHTML = `<div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn" style="flex:1" id="btn-addf">＋ Nuovo fornitore</button>
+      <button class="btn ghost" id="btn-mergef">🔗 Unisci / sposta</button></div>` +
     (S.fornitori.map(f=>`<div class="card" data-f="${f.id}" style="cursor:pointer;display:flex;align-items:center;gap:10px">
       <div style="flex:1">
         <div style="font-weight:600">${esc(f.nome)}</div>
         <div class="muted">${f.email?esc(f.email):'<span style="color:var(--warn)">nessuna email</span>'}${f.telefono?' · '+esc(f.telefono):''}</div>
       </div><span class="muted">›</span></div>`).join('') || '<div class="empty">Nessun fornitore.</div>');
   $('#btn-addf').onclick=()=>schedaFornitore(null);
+  $('#btn-mergef').onclick=()=>unisciFornitori();
   $('#main').querySelectorAll('[data-f]').forEach(c=>c.onclick=()=>schedaFornitore(S.fornitori.find(f=>f.id==c.dataset.f)));
+}
+
+/* ---------------- UNISCI / SPOSTA FORNITORI ---------------- */
+async function contaArticoliFornitore(nome){
+  // primario esatto, alternativo esatto, oppure dentro un campo multiplo "A / B / C"
+  const { data } = await sb.from('ord_articoli').select('id,venditore_primario,venditore_alternativo');
+  const n = nome.trim().toLowerCase();
+  const dentroMultiplo = (v) => v && v.includes('/') && v.split('/').map(s=>s.trim().toLowerCase()).includes(n);
+  return (data||[]).filter(a=>{
+    const p=(a.venditore_primario||'').trim().toLowerCase(), s=(a.venditore_alternativo||'').trim().toLowerCase();
+    return p===n || s===n || dentroMultiplo(a.venditore_primario) || dentroMultiplo(a.venditore_alternativo);
+  });
+}
+
+function unisciFornitori(){
+  const elencoTieni = S.fornitori.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('');
+  modal('Unisci fornitori', `
+    <p class="muted">Sposta gli articoli da uno o più fornitori doppi verso quello da tenere, poi elimina i doppioni.</p>
+    <label class="f"><span>Fornitore da tenere</span>
+      <select class="inp" id="uf-keep"><option value="">— scegli —</option>${elencoTieni}</select></label>
+    <label class="f"><span>Fornitori da eliminare (spostano qui i loro articoli)</span>
+      <div class="chipwrap" id="uf-drop">${S.fornitori.map(f=>`<button type="button" class="chip" data-id="${f.id}" data-nome="${esc(f.nome)}">${esc(f.nome)}</button>`).join('')}</div></label>
+    <div id="uf-info" class="muted"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn ghost" style="flex:1" id="m-x">Annulla</button>
+      <button class="btn" style="flex:1" id="m-ok">Conta articoli →</button></div>`,
+   sh=>{
+     const drop=new Set();
+     const keep=sh.querySelector('#uf-keep');
+     const info=sh.querySelector('#uf-info');
+     sh.querySelectorAll('#uf-drop .chip').forEach(b=>b.onclick=()=>{
+       const id=b.dataset.id;
+       if(keep.value && id===keep.value){ alert('Questo è il fornitore da tenere: non puoi eliminarlo.'); return; }
+       drop.has(id)?drop.delete(id):drop.add(id); b.classList.toggle('on'); info.textContent='';
+     });
+     sh.querySelector('#m-x').onclick=chiudiModal;
+     sh.querySelector('#m-ok').onclick=async()=>{
+       const keepF=S.fornitori.find(f=>String(f.id)===keep.value);
+       if(!keepF){ alert('Scegli il fornitore da tenere.'); return; }
+       const dropF=[...drop].map(id=>S.fornitori.find(f=>String(f.id)===id)).filter(f=>f && f.id!==keepF.id);
+       if(!dropF.length){ alert('Scegli almeno un fornitore da eliminare.'); return; }
+       info.textContent='Conto gli articoli…';
+       let totale=0; const perNome={};
+       for(const f of dropF){ const art=await contaArticoliFornitore(f.nome); perNome[f.nome]=art; totale+=art.length; }
+       confermaUnione(keepF, dropF, perNome, totale);
+     };
+   });
+}
+
+function confermaUnione(keepF, dropF, perNome, totale){
+  modal('Confermi l\'unione?', `
+    <p>Tutti gli articoli di <b>${dropF.map(f=>esc(f.nome)).join(', ')}</b> passeranno a <b>${esc(keepF.nome)}</b>.</p>
+    <div class="card">${dropF.map(f=>`<div style="display:flex;justify-content:space-between;padding:3px 0">
+      <span>${esc(f.nome)}</span><b>${perNome[f.nome].length} articoli</b></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:1px solid var(--line);margin-top:6px">
+      <span>Totale da spostare</span><b>${totale}</b></div></div>
+    <label class="f"><span>Gli ordini già emessi</span>
+      <select class="inp" id="uf-storico">
+        <option value="no">Lasciali com'erano (nome storico sul documento)</option>
+        <option value="si">Allinea anche gli ordini passati al nuovo nome</option>
+      </select></label>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn ghost" style="flex:1" id="m-x">Indietro</button>
+      <button class="btn" style="flex:1" id="m-ok">Unisci</button></div>`,
+   sh=>{
+     sh.querySelector('#m-x').onclick=()=>unisciFornitori();
+     sh.querySelector('#m-ok').onclick=async()=>{
+       const allineaStorico = sh.querySelector('#uf-storico').value==='si';
+       const btn=sh.querySelector('#m-ok'); btn.disabled=true; btn.textContent='Unisco…';
+       try{
+         for(const f of dropF){
+           const nome=f.nome, nl=nome.trim().toLowerCase();
+           // aggiorna gli articoli: primario, alternativo, campi multipli
+           for(const a of perNome[nome]){
+             const { data:rows } = await sb.from('ord_articoli').select('id,venditore_primario,venditore_alternativo').eq('id',a.id);
+             const art=rows&&rows[0]; if(!art) continue;
+             const rimpiazza = v => {
+               if(!v) return v;
+               if(v.trim().toLowerCase()===nl) return keepF.nome;
+               if(v.includes('/')) return v.split('/').map(s=>s.trim().toLowerCase()===nl?keepF.nome:s.trim()).join(' / ');
+               return v;
+             };
+             await sb.from('ord_articoli').update({
+               venditore_primario:rimpiazza(art.venditore_primario),
+               venditore_alternativo:rimpiazza(art.venditore_alternativo)
+             }).eq('id',art.id);
+           }
+           // ordini passati (righe con fornitore congelato)
+           if(allineaStorico) await sb.from('ord_righe').update({fornitore:keepF.nome}).eq('fornitore',nome);
+           // elimina la voce doppia
+           await sb.from('ord_fornitori').update({attivo:false}).eq('id',f.id);
+         }
+         await Promise.all([caricaFornitori(), caricaArticoli()]);
+         chiudiModal(); vistaFornitori(); toast('Fornitori uniti');
+       }catch(e){ alert('Errore durante l\'unione: '+e.message); btn.disabled=false; btn.textContent='Unisci'; }
+     };
+   });
 }
 
 function schedaFornitore(f){
