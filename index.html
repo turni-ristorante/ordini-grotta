@@ -168,7 +168,14 @@ const articoliDelSettore = set => {
 const MIN_CANC = 20;      // minuti entro cui il creatore può cancellare
 const GG_CESTINO = 10;    // giorni di permanenza nel cestino
 
-const REPARTI = ['Cucina','Pizzeria','Staff'];   // reparti del settore cucina
+// reparti per settore. Bar vuoto = nessun reparto (attivabile aggiungendo voci qui).
+const REPARTI_SET = {
+  cucina:   ['Cucina','Pizzeria','Staff'],
+  bar:      [],
+  sala_vini:[]
+};
+const REPARTI = REPARTI_SET.cucina;   // compatibilità
+const repartiDi = set => REPARTI_SET[(set==='pizzeria'?'cucina':set)] || [];
 const SETTORI_ANAG = ['cucina','sala_vini','bar'];   // pizzeria condivide l'anagrafica di cucina
 const settoriAnagUtente = () => {
   const r = [...new Set((S.user?.settori||[]).map(s=>s==='pizzeria'?'cucina':s))].filter(s=>SETTORI_ANAG.includes(s));
@@ -866,8 +873,8 @@ function schedaArticolo(a, done){
         ${a.posizione && !chipList(a.settore,'posizione').includes(a.posizione)?`<option selected>${esc(a.posizione)}</option>`:''}
       </select></label>
     </div>
-    <label class="f rep-field" style="display:${a.settore==='cucina'?'block':'none'}"><span>In quali ordini deve comparire</span>
-      <div class="chipwrap" id="a-rep">${REPARTI.map(r=>`<button type="button" class="chip rep ${(a.reparti||[]).includes(r)?'on':''}" data-r="${r}" ${ro?'disabled':''}>${r}</button>`).join('')}</div>
+    <label class="f rep-field" style="display:${repartiDi(a.settore).length?'block':'none'}"><span>In quali ordini deve comparire</span>
+      <div class="chipwrap" id="a-rep">${repartiDi(a.settore).map(r=>`<button type="button" class="chip rep ${(a.reparti||[]).includes(r)?'on':''}" data-r="${r}" ${ro?'disabled':''}>${r}</button>`).join('')}</div>
       <div class="muted" style="margin-top:5px">Puoi sceglierne più di uno: l'articolo comparirà in ogni ordine selezionato, con quantità indipendenti.</div></label>
     <div class="grid2">
       <label class="f"><span>U.M.</span><select class="inp" data-k="um" ${ro?'disabled':''}>
@@ -899,7 +906,7 @@ function schedaArticolo(a, done){
      // mostra/nasconde reparto in base al settore scelto
      const setSel = sh.querySelector('[data-k="settore"]');
      const repField = sh.querySelector('.rep-field');
-     if(setSel) setSel.onchange=()=>{ repField.style.display = setSel.value==='cucina'?'block':'none'; };
+     if(setSel) setSel.onchange=()=>{ repField.style.display = repartiDi(setSel.value).length?'block':'none'; };
      if(!nuovo) sh.querySelector('#m-del').onclick=async()=>{
        if(!confirm('Eliminare "'+a.nome+'"?\n\nSparisce dagli ordini futuri, ma resta intatto in tutti gli ordini già fatti.')) return;
        await sb.from('ord_articoli').update({attivo:false}).eq('id',a.id);
@@ -912,10 +919,11 @@ function schedaArticolo(a, done){
          if(i.type==='number') v = v===''?null:parseFloat(v);
          rec[i.dataset.k] = v===''?null:v;
        });
-       rec.reparti = rec.settore==='cucina' ? [...repSel] : [];
+       const haRep = repartiDi(rec.settore).length>0;
+       rec.reparti = haRep ? [...repSel] : [];
        if(!rec.nome){ alert('Il nome è obbligatorio.'); return; }
-       if(rec.settore==='cucina' && !rec.reparti.length){
-         alert('Scegli almeno un reparto (Cucina, Pizzeria o Staff).\n\nSenza reparto l\'articolo non comparirebbe in nessun ordine.'); return;
+       if(haRep && !rec.reparti.length){
+         alert('Scegli almeno un reparto.\n\nSenza reparto l\'articolo non comparirebbe in nessun ordine.'); return;
        }
        rec.aggiornato_il=new Date().toISOString(); delete rec.creato_il;
        const { error } = rec.id ? await sb.from('ord_articoli').update(rec).eq('id',rec.id)
