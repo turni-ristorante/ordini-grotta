@@ -821,7 +821,7 @@ function schedaUM(u, SET_OPT){
 
 /* ---------------- ANAGRAFICA ---------------- */
 function vistaAnagrafica(){
-  S.view='anagrafica'; S.q=''; S.setA=S.setA||settoriAnagUtente()[0];
+  S.view='anagrafica'; S.q=''; S.faCat=null; S.faForn=null; S.setA=S.setA||settoriAnagUtente()[0];
   $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide');
   $('#h-title').textContent='Anagrafica articoli';
   $('#h-sub').textContent = vedeListino()?'Tutti i campi modificabili':'Consultazione';
@@ -830,21 +830,57 @@ function vistaAnagrafica(){
   t.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ S.setA=b.dataset.s; vistaAnagrafica(); });
   render();
   function render(){
-    const art=S.articoli.filter(a=>a.settore===S.setA && (!S.q||a.nome.toLowerCase().includes(S.q.toLowerCase())));
+    const artSet = S.articoli.filter(a=>a.settore===S.setA);
+    // opzioni tendine, ricavate dagli articoli del settore
+    const cats = [...new Set(artSet.map(a=>a.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    const fornSet = new Set();
+    artSet.forEach(a=>{
+      [a.venditore_primario, a.venditore_alternativo].forEach(v=>{
+        if(!v) return;
+        (v.includes('/')?v.split('/'):[v]).forEach(x=>{ const n=x.trim(); if(n) fornSet.add(n); });
+      });
+    });
+    const forns=[...fornSet].sort((a,b)=>a.localeCompare(b));
+
     $('#main').innerHTML = `
       ${vedeListino()?'<button class="btn full" id="btn-add" style="margin-bottom:10px">＋ Nuovo articolo</button>':''}
-      <input class="inp" id="q" placeholder="🔍 Cerca…" value="${esc(S.q)}" style="margin-bottom:10px">
-      ${art.map(a=>`<div class="art ${!a.attivo?'noprice':''}" data-a="${a.id}" style="cursor:pointer">
-        <div class="art-top"><div style="flex:1">
-          <div class="art-nm">${esc(a.nome)} ${!a.attivo?'<span class="badge b-warn">eliminato</span>':''}</div>
-          <div class="art-meta">${[a.posizione?`<span class="pos">${esc(a.posizione)}</span>`:'',
-            (a.reparti||[]).length?(a.reparti||[]).join('+'):'', a.categoria, a.um,
-            vedeListino()?(a.prezzo!=null?a.prezzo.toFixed(2)+' €':'<span class="badge b-warn">senza prezzo</span>'):''
-          ].filter(Boolean).join(' · ')}</div>
-        </div><span class="muted">›</span></div></div>`).join('')||'<div class="empty">Nessun articolo.</div>'}`;
-    $('#q').oninput=e=>{ S.q=e.target.value; render(); };
+      <input class="inp" id="q" placeholder="🔍 Cerca per nome…" value="${esc(S.q)}" style="margin-bottom:8px">
+      <div class="grid2" style="margin-bottom:8px">
+        <select class="inp" id="fa-cat"><option value="">Tutte le categorie</option>
+          ${cats.map(c=>`<option ${S.faCat===c?'selected':''}>${esc(c)}</option>`).join('')}</select>
+        <select class="inp" id="fa-forn"><option value="">Tutti i fornitori</option>
+          ${forns.map(f=>`<option ${S.faForn===f?'selected':''}>${esc(f)}</option>`).join('')}</select>
+      </div>
+      <div id="an-count" class="muted" style="margin-bottom:8px"></div>
+      <div id="an-list"></div>`;
+
+    const matchForn = a => {
+      if(!S.faForn) return true;
+      const campi=[a.venditore_primario, a.venditore_alternativo].filter(Boolean);
+      return campi.some(v => (v.includes('/')?v.split('/').map(x=>x.trim()):[v.trim()]).includes(S.faForn));
+    };
+    const disegnaLista=()=>{
+      const art=artSet.filter(a=>
+        (!S.q || a.nome.toLowerCase().includes(S.q.toLowerCase())) &&
+        (!S.faCat || a.categoria===S.faCat) &&
+        matchForn(a));
+      $('#an-count').textContent = `${art.length} ${art.length===1?'articolo':'articoli'}`;
+      $('#an-list').innerHTML = art.map(a=>`<div class="art ${!a.attivo?'noprice':''}" data-a="${a.id}" style="cursor:pointer">
+          <div class="art-top"><div style="flex:1">
+            <div class="art-nm">${esc(a.nome)} ${!a.attivo?'<span class="badge b-warn">eliminato</span>':''}</div>
+            <div class="art-meta">${[a.posizione?`<span class="pos">${esc(a.posizione)}</span>`:'',
+              (a.reparti||[]).length?(a.reparti||[]).join('+'):'', a.categoria, a.um,
+              a.venditore_primario?('🏷 '+esc(a.venditore_primario)):'',
+              vedeListino()?(a.prezzo!=null?a.prezzo.toFixed(2)+' €':'<span class="badge b-warn">senza prezzo</span>'):''
+            ].filter(Boolean).join(' · ')}</div>
+          </div><span class="muted">›</span></div></div>`).join('')||'<div class="empty">Nessun articolo con questi filtri.</div>';
+      $('#an-list').querySelectorAll('[data-a]').forEach(c=>c.onclick=()=>schedaArticolo(S.articoli.find(a=>a.id==c.dataset.a),render));
+    };
+    disegnaLista();
+    $('#q').oninput=e=>{ S.q=e.target.value; disegnaLista(); };
+    $('#fa-cat').onchange=e=>{ S.faCat=e.target.value||null; disegnaLista(); };
+    $('#fa-forn').onchange=e=>{ S.faForn=e.target.value||null; disegnaLista(); };
     if(vedeListino()) $('#btn-add').onclick=()=>schedaArticolo(null,render);
-    $('#main').querySelectorAll('[data-a]').forEach(c=>c.onclick=()=>schedaArticolo(S.articoli.find(a=>a.id==c.dataset.a),render));
   }
 }
 
