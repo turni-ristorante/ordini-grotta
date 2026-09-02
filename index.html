@@ -820,8 +820,9 @@ function schedaUM(u, SET_OPT){
 }
 
 /* ---------------- ANAGRAFICA ---------------- */
-function vistaAnagrafica(){
+async function vistaAnagrafica(){
   S.view='anagrafica'; S.q=''; S.faCat=null; S.faForn=null; S.setA=S.setA||settoriAnagUtente()[0];
+  if(!S.fornitori || !S.fornitori.length) await caricaFornitori();
   $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide');
   $('#h-title').textContent='Anagrafica articoli';
   $('#h-sub').textContent = vedeListino()?'Tutti i campi modificabili':'Consultazione';
@@ -888,6 +889,8 @@ function schedaArticolo(a, done){
   const nuovo=!a, ro=!vedeListino();
   const setDef = (S.setA && SETTORI_ANAG.includes(S.setA)) ? S.setA : 'cucina';
   a = a || { settore:setDef, lista:(SETTORI[setDef]?.liste||['Cucina e pizzeria'])[0], reparti:[], attivo:true, seq:999 };
+  const optForn = (S.fornitori||[]).map(f=>`<option value="${esc(f.nome)}">`).join('');
+  const FF=(k,l)=>`<label class="f"><span>${l}</span><input class="inp" data-k="${k}" list="dl-forn" autocomplete="off" value="${esc(a[k]??'')}" ${ro?'disabled':''}></label>`;
   const F=(k,l,t='text')=>`<label class="f"><span>${l}</span><input class="inp" data-k="${k}" type="${t}" value="${esc(a[k]??'')}" ${ro?'disabled':''}></label>`;
   modal(nuovo?'Nuovo articolo':'Scheda articolo', `
     ${F('nome','Nome articolo')}
@@ -922,7 +925,8 @@ function schedaArticolo(a, done){
     ${vedeListino()?`
       <h3 style="margin:16px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Listino</h3>
       <div class="grid2">${F('prezzo','Prezzo €','number')}${F('prezzo_um','Prezzo per (U.M.)')}</div>
-      <div class="grid2">${F('venditore_primario','Venditore primario')}${F('venditore_alternativo','Venditore alternativo')}</div>
+      <div class="grid2">${FF('venditore_primario','Venditore primario')}${FF('venditore_alternativo','Venditore alternativo')}</div>
+      <datalist id="dl-forn">${optForn}</datalist>
       <div class="grid2">${F('codice','Codice')}${F('tipo_consegna','Tipo consegna')}</div>
       <div class="grid2">${F('cod_vendita','Cod. vendita')}${F('annata','Annata')}</div>
       ${F('produttore','Produttore')}
