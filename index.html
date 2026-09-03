@@ -89,8 +89,10 @@ label.f>span{display:block;font-size:11px;text-transform:uppercase;letter-spacin
 .notebox input{width:100%;padding:8px 10px;border:1px dashed var(--line);border-radius:8px;font-size:13px;background:#fcfbf9}
 .notebox input:disabled{background:#f4f4f2}
 .savebar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:#fff;border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:center}
-.savebar .cnt{flex:1;font-size:13px;color:var(--mut)}
-.savebar .cnt b{color:var(--warn)}
+.savebar .cnt{flex:1;font-size:13px;font-weight:600}
+#btn-top{position:fixed;right:16px;bottom:70px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:45;width:46px;height:46px;border-radius:50%;background:var(--ink);color:#fff;font-size:22px;box-shadow:0 4px 14px #16202b55;display:flex;align-items:center;justify-content:center}
+.art.locked{opacity:.85;background:#faf9f7}
+.art.locked .qty input,.art.locked .notebox input{background:#f0eeeb}
 .ov{position:fixed;inset:0;z-index:60;background:#16202bcc;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--paper);width:100%;max-width:640px;max-height:92vh;overflow-y:auto;border-radius:16px 16px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
 .sheet h2{font-size:19px;margin-bottom:4px}
@@ -133,8 +135,8 @@ label.f>span{display:block;font-size:11px;text-transform:uppercase;letter-spacin
 
 <div class="savebar hide" id="savebar">
   <div class="cnt" id="save-cnt"></div>
-  <button class="btn" id="btn-save">💾 Salva</button>
 </div>
+<button id="btn-top" class="hide" aria-label="Torna su">↑</button>
 <div id="modal-root"></div>
 
 <script>
@@ -165,7 +167,6 @@ const articoliDelSettore = set => {
   return rep ? S.articoli.filter(a=>a.settore==='cucina' && (a.reparti||[]).includes(rep))
              : S.articoli.filter(a=>a.settore===set);
 };
-const MIN_CANC = 20;      // minuti entro cui il creatore può cancellare
 const GG_CESTINO = 10;    // giorni di permanenza nel cestino
 
 // reparti per settore. Bar vuoto = nessun reparto (attivabile aggiungendo voci qui).
@@ -197,16 +198,30 @@ const isMgr  = () => S.user?.ruolo === 'manager';
 const isResp = () => S.user?.ruolo === 'responsabile';
 const vedeListino = () => isMgr() || isResp();
 const puoFlaggare = () => isMgr() || isResp();
-const puoQta = o => isMgr() || isResp() || (o && o.creato_da === S.user.id);
 const isProprietario = o => o && o.creato_da === S.user.id;
-const puoCancellare = o => {
-  if(isMgr()) return true;
-  if(!o || o.creato_da !== S.user.id) return false;
-  return (Date.now() - new Date(o.creato_il).getTime()) < MIN_CANC*60000;
-};
-const minutiRimasti = o => Math.max(0, Math.ceil(MIN_CANC - (Date.now()-new Date(o.creato_il).getTime())/60000));
+// puo' modificare le quantita' dell'ordine in generale (creatore/resp/manager)
+const puoQta = o => isMgr() || isResp() || isProprietario(o);
+// REGOLA B: una riga gia' "ordinato" e' bloccata; solo il manager la puo' toccare
+const puoModificaRiga = r => isMgr() || (!(r && r.ordinato) && puoQta(S.ordine));
+// c'e' almeno una riga ordinata in questo ordine?
+const haRigheOrdinate = () => Object.values(S.righe).some(r=>r.ordinato);
+// cancellazione: manager sempre; creatore finche' nessuna riga e' stata ordinata
+const puoCancellare = o => isMgr() || (isProprietario(o) && !haRigheOrdinate());
 
 /* ---------------- LOGIN ---------------- */
+function ricordaCodice(cod){
+  try{ localStorage.setItem('gm_ordini_code',cod); }catch(e){}
+  try{ sessionStorage.setItem('gm_ordini_code',cod); }catch(e){}
+}
+function leggiCodice(){
+  try{ const c=localStorage.getItem('gm_ordini_code'); if(c) return c; }catch(e){}
+  try{ return sessionStorage.getItem('gm_ordini_code'); }catch(e){}
+  return null;
+}
+function dimenticaCodice(){
+  try{ localStorage.removeItem('gm_ordini_code'); }catch(e){}
+  try{ sessionStorage.removeItem('gm_ordini_code'); }catch(e){}
+}
 $('#btn-login').onclick = async () => {
   const cod = $('#in-code').value.trim();
   if(!cod) return;
@@ -214,14 +229,17 @@ $('#btn-login').onclick = async () => {
   const e=$('#login-err');
   if(error){ e.textContent='Non riesco a contattare il database: '+error.message; e.classList.remove('hide'); return; }
   if(!data){ e.textContent='Codice non riconosciuto. Riprova.'; e.classList.remove('hide'); return; }
-  S.user=data; localStorage.setItem('gm_ordini_code',cod);
+  S.user=data; ricordaCodice(cod);
   $('#v-login').classList.add('hide'); $('#v-app').classList.remove('hide');
   await Promise.all([caricaArticoli(), caricaUM(), caricaChip(), caricaFornitori()]);
   if(isMgr()) svuotaCestinoVecchio();
   vistaOrdini();
 };
 $('#in-code').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#btn-login').click(); });
-window.addEventListener('load', ()=>{ const c=localStorage.getItem('gm_ordini_code'); if(c){ $('#in-code').value=c; $('#btn-login').click(); }});
+window.addEventListener('load', ()=>{ const c=leggiCodice(); if(c){ $('#in-code').value=c; $('#btn-login').click(); }});
+// salva il lavoro se la pagina sta per chiudersi/aggiornarsi
+window.addEventListener('pagehide', ()=>{ if(S.dirty.size){ clearTimeout(_saveTimer); salvaAuto(); } });
+
 
 /* ---------------- DATI ---------------- */
 async function caricaArticoli(){
@@ -261,12 +279,20 @@ async function svuotaCestinoVecchio(){
 }
 
 /* ---------------- NAV ---------------- */
-$('#btn-back').onclick = ()=>{ if(uscita()) vistaOrdini(); };
+$('#btn-back').onclick = async ()=>{ await uscita(); vistaOrdini(); };
 $('#btn-menu').onclick = ()=>menu();
-function uscita(){
-  if(S.dirty.size && !confirm('Ci sono '+S.dirty.size+' modifiche non salvate. Uscire comunque?')) return false;
-  S.dirty.clear(); return true;
+async function uscita(){
+  clearTimeout(_saveTimer);
+  if(S.dirty.size || _saving) await salvaAuto();   // aspetta che sia tutto salvato
+  return true;
 }
+
+// Tasto "torna su": compare scorrendo, riporta in cima
+window.addEventListener('scroll', ()=>{
+  const b=$('#btn-top'); if(!b) return;
+  b.classList.toggle('hide', window.scrollY < 300);
+}, {passive:true});
+document.addEventListener('click', e=>{ if(e.target && e.target.id==='btn-top') window.scrollTo({top:0,behavior:'smooth'}); });
 function menu(){
   const v=[['ordini','📋 Ordini'],
     vedeListino()?['archivio','🔎 Archivio ordini']:null,
@@ -276,10 +302,10 @@ function menu(){
     vedeListino()?['um','📏 Unità di misura']:null, isMgr()?['utenti','👥 Utenti e accessi']:null,
     ['logout','🚪 Esci']].filter(Boolean);
   modal('Menu', v.map(([k,l])=>`<button class="btn ghost full" style="margin-bottom:8px" data-go="${k}">${l}</button>`).join(''),
-    sh=>sh.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
+    sh=>sh.querySelectorAll('[data-go]').forEach(b=>b.onclick=async()=>{
       chiudiModal();
-      if(b.dataset.go==='logout'){ localStorage.removeItem('gm_ordini_code'); location.reload(); return; }
-      if(!uscita()) return;
+      if(b.dataset.go==='logout'){ await uscita(); dimenticaCodice(); location.reload(); return; }
+      await uscita();
       ({ordini:vistaOrdini, archivio:vistaArchivio, cestino:vistaCestino, anagrafica:vistaAnagrafica,
         fornitori:vistaFornitori, chip:vistaChip, um:vistaUM, utenti:vistaUtenti})[b.dataset.go]();
     }));
@@ -308,8 +334,11 @@ async function vistaOrdini(){
       </div>${mio}${b}<span class="muted">›</span></div>`;
   }).join('') : '<div class="empty">Nessun ordine aperto.</div>';
 
-  $('#main').innerHTML = `<button class="btn full" id="btn-new" style="margin-bottom:12px">＋ Nuovo ordine</button>` + lista;
+  $('#main').innerHTML = `<button class="btn full" id="btn-new" style="margin-bottom:8px">＋ Nuovo ordine</button>`
+    + (vedeListino()?`<button class="btn ghost full" id="btn-exp" style="margin-bottom:12px">📄 Esporta ordini per fornitore</button>`:'')
+    + lista;
   $('#btn-new').onclick = nuovoOrdine;
+  if(vedeListino()) $('#btn-exp').onclick = vistaExport;
   $('#main').querySelectorAll('[data-o]').forEach(c=>c.onclick=()=>apriOrdine(S.ordini.find(o=>o.id==c.dataset.o)));
 }
 
@@ -403,7 +432,6 @@ function renderOrdine(){
   if(puoFlaggare()) azioni.push(`<button class="btn ghost" style="flex:1" id="btn-fo">✓ Fine ordini</button>
                                  <button class="btn ghost" style="flex:1" id="btn-fs">📦 Fine scarichi</button>`);
   if(puoCancellare(o)) azioni.push(`<button class="btn warn" id="btn-del">🗑</button>`);
-  const azPdf = vedeListino() ? `<div class="card"><button class="btn full" id="btn-pdf">📄 Esporta PDF per fornitore</button></div>` : '';
 
   const repRow = isCucina ? `<div class="flt"><div class="flt-lab">Vista rapida</div><div class="chipbar">
       <button class="chip rep ${!S.fRep?'on':''}" data-rep="">Tutti</button>
@@ -412,10 +440,8 @@ function renderOrdine(){
 
   $('#main').innerHTML = `
     ${azioni.length?`<div class="card" style="display:flex;gap:8px">${azioni.join('')}</div>`:''}
-    ${azPdf}
-    ${(!isMgr() && !puoCancellare(o) && o.creato_da===S.user.id)
-      ? '<p class="muted" style="margin:-4px 0 10px">Finestra di cancellazione scaduta (20 minuti). Solo il manager può cancellare questo ordine.</p>':''}
-    ${puoCancellare(o) && !isMgr() ? `<p class="muted" style="margin:-4px 0 10px">Cancellabile ancora per ${minutiRimasti(o)} min.</p>`:''}
+    ${(!isMgr() && !puoCancellare(o) && o.creato_da===S.user.id && haRigheOrdinate())
+      ? '<p class="muted" style="margin:-4px 0 10px">Questo ordine ha già articoli ordinati: solo il manager può cancellarlo.</p>':''}
     <input class="inp" id="q" placeholder="🔍 Cerca articolo…" value="${esc(S.q)}" style="margin-bottom:10px">
     <button class="chip ${S.soloQta?'on':''}" id="f-qta" style="margin-bottom:10px">${S.soloQta?'✓ ':''}Solo articoli richiesti</button>
     ${repRow}
@@ -435,18 +461,20 @@ function renderOrdine(){
   $('#main').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{ S.fCat=b.dataset.c||null; renderOrdine(); });
   $('#main').querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{ S.fPos=b.dataset.p||null; renderOrdine(); });
   if(puoFlaggare()){ $('#btn-fo').onclick=fineOrdini; $('#btn-fs').onclick=fineScarichi; }
-  if(vedeListino()) $('#btn-pdf').onclick=esportaPDF;
   if(puoCancellare(o)) $('#btn-del').onclick=()=>cancellaOrdine(o);
   bindRighe(); aggiornaSaveBar();
 }
 
 function cardArticolo(a){
   const r=S.righe[a.id]||{}, o=S.ordine;
-  const editQ = puoQta(o), editF = puoFlaggare();
+  const editRiga = puoModificaRiga(r), editF = puoFlaggare();
+  const bloccata = r.ordinato && !isMgr();
   const noPrice = vedeListino() && (a.prezzo===null||a.prezzo===undefined);
   const has = r.quantita>0;
   const meta = [
     a.posizione && `<span class="pos">${esc(a.posizione)}</span>`,
+    r.ordinato && '<span class="badge b-ord">ordinato</span>',
+    r.da_riesportare && '<span class="badge b-warn">da riesportare</span>',
     a.categoria && esc(a.categoria),
     a.annata && 'Annata '+esc(a.annata),
     a.produttore && esc(a.produttore),
@@ -464,16 +492,16 @@ function cardArticolo(a){
   const flags = editF ? `<div class="flags">
       <button class="flag ${r.ordinato?'on-ord':''}" data-flag="ordinato" data-id="${a.id}">${r.ordinato?'✓':'○'} Ordinato</button>
       <button class="flag ${r.consegnato?'on-con':''}" data-flag="consegnato" data-id="${a.id}">${r.consegnato?'✓':'○'} Consegnato</button></div>`:'';
-  return `<div class="art ${has?'filled':''} ${noPrice?'noprice':''}" id="art-${a.id}">
+  return `<div class="art ${has?'filled':''} ${noPrice?'noprice':''} ${bloccata?'locked':''}" id="art-${a.id}">
     <div class="art-top">
       <div style="flex:1;min-width:0">
-        <div class="art-nm">${esc(a.nome)}</div>
+        <div class="art-nm">${esc(a.nome)} ${bloccata?'<span title="riga ordinata: solo il manager può modificarla">🔒</span>':''}</div>
         <div class="art-meta">${meta}</div>
       </div>
       <div class="qty">
         <input type="number" inputmode="decimal" step="any" min="0" placeholder="0"
-          value="${r.quantita??''}" class="${has?'has':''}" data-qta="${a.id}" ${editQ?'':'disabled'}>
-        <select data-um="${a.id}" ${editQ?'':'disabled'}>
+          value="${r.quantita??''}" class="${has?'has':''}" data-qta="${a.id}" ${editRiga?'':'disabled'}>
+        <select data-um="${a.id}" ${editRiga?'':'disabled'}>
           ${[...new Set([...(umDelSettore(S.ordine.settore)), ...(r.qta_um?[r.qta_um]:[])])].map(u=>`<option ${(r.qta_um||a.um)===u?'selected':''}>${u}</option>`).join('')}</select>
       </div>
     </div>
@@ -481,7 +509,7 @@ function cardArticolo(a){
     <div class="difbox">${badgeDiscrepanza(r)}</div>
     ${listino}${flags}
     <div class="notebox">
-      <input placeholder="Nota per questo ordine…" value="${esc(r.note_riga||'')}" data-note="${a.id}" ${editQ?'':'disabled'}>
+      <input placeholder="Nota per questo ordine…" value="${esc(r.note_riga||'')}" data-note="${a.id}" ${editRiga?'':'disabled'}>
     </div>
   </div>`;
 }
@@ -498,84 +526,105 @@ function bindRighe(){
   $('#main').querySelectorAll('[data-qta]').forEach(i=>i.onchange=e=>{
     const a=art(i.dataset.qta), r=riga(a), v=e.target.value===''?null:parseFloat(e.target.value);
     const nuovaQ = (v===null||isNaN(v))?null:v;
-    if(isProprietario(S.ordine)){
-      // il capo reparto scrive la richiesta originale
+    if(isProprietario(S.ordine) && !r.ordinato){
       r.quantita=nuovaQ; r.qta_richiesta=nuovaQ; r.operatore=S.user.nome;
     } else {
-      // responsabile o manager: la richiesta resta congelata, si traccia la variazione
       if(r.qta_richiesta===null || r.qta_richiesta===undefined) r.qta_richiesta = r.quantita ?? null;
       r.quantita=nuovaQ;
       if(r.qta_richiesta !== nuovaQ){ r.qta_modif_da=S.user.nome; r.qta_modif_il=new Date().toISOString(); }
       else { r.qta_modif_da=null; r.qta_modif_il=null; }
     }
+    if(r.ordinato) r.da_riesportare=true;   // modificata dopo l'ordine -> va rimandata
     e.target.classList.toggle('has', r.quantita>0);
     const card=document.getElementById('art-'+a.id);
     card.classList.toggle('filled', r.quantita>0);
-    const dif=card.querySelector('.difbox');
-    if(dif) dif.innerHTML = badgeDiscrepanza(r);
-    S.dirty.add(a.id); aggiornaSaveBar();
+    const dif=card.querySelector('.difbox'); if(dif) dif.innerHTML = badgeDiscrepanza(r);
+    segna(a.id);
   });
   $('#main').querySelectorAll('[data-um]').forEach(s=>s.onchange=e=>{
-    const a=art(s.dataset.um); riga(a).qta_um=e.target.value; S.dirty.add(a.id); aggiornaSaveBar();
+    const a=art(s.dataset.um), r=riga(a); r.qta_um=e.target.value; if(r.ordinato) r.da_riesportare=true; segna(a.id);
   });
   $('#main').querySelectorAll('[data-note]').forEach(i=>i.onchange=e=>{
-    const a=art(i.dataset.note); riga(a).note_riga=e.target.value||null; S.dirty.add(a.id); aggiornaSaveBar();
+    const a=art(i.dataset.note), r=riga(a); r.note_riga=e.target.value||null; if(r.ordinato) r.da_riesportare=true; segna(a.id);
   });
   $('#main').querySelectorAll('[data-flag]').forEach(b=>b.onclick=()=>{
     const a=art(b.dataset.id), r=riga(a), f=b.dataset.flag;
     r[f]=!r[f];
-    if(f==='ordinato'){ r.ordinato_il=r.ordinato?new Date().toISOString():null; if(!r.ordinato){ r.consegnato=false; r.consegnato_il=null; } }
+    if(f==='ordinato'){ r.ordinato_il=r.ordinato?new Date().toISOString():null; if(r.ordinato) r.da_riesportare=false; else { r.consegnato=false; r.consegnato_il=null; } }
     if(f==='consegnato') r.consegnato_il=r.consegnato?new Date().toISOString():null;
-    S.dirty.add(a.id);
     const p=b.parentElement;
     const bo=p.querySelector('[data-flag="ordinato"]'), bc=p.querySelector('[data-flag="consegnato"]');
     bo.className='flag '+(r.ordinato?'on-ord':''); bo.textContent=(r.ordinato?'✓':'○')+' Ordinato';
     bc.className='flag '+(r.consegnato?'on-con':''); bc.textContent=(r.consegnato?'✓':'○')+' Consegnato';
-    aggiornaSaveBar();
+    segna(a.id);
   });
 }
 
-function aggiornaSaveBar(){
+// --- AUTO-SAVE ---
+let _saveTimer=null;
+let _saving=null;   // promise del salvataggio in corso, se presente
+function segna(id){
+  S.dirty.add(id);
+  aggiornaSaveBar();
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(salvaAuto, 900);
+}
+function aggiornaSaveBar(stato){
   const b=$('#savebar');
   if(S.view!=='ordine' || (!puoQta(S.ordine) && !puoFlaggare())){ b.classList.add('hide'); return; }
   b.classList.remove('hide');
-  $('#save-cnt').innerHTML = S.dirty.size?`<b>${S.dirty.size}</b> modifiche da salvare`:'Tutto salvato';
-  $('#btn-save').disabled = !S.dirty.size;
+  const c=$('#save-cnt');
+  if(stato==='salvo') c.innerHTML='<span style="color:var(--mut)">Salvataggio…</span>';
+  else if(S.dirty.size) c.innerHTML='<span style="color:var(--amb)">Modifiche in corso…</span>';
+  else c.innerHTML='<span style="color:var(--acc)">✓ Tutto salvato</span>';
 }
-
-$('#btn-save').onclick = async () => {
-  const btn=$('#btn-save'); btn.disabled=true; btn.textContent='Salvo…';
-  const up=[], del=[];
-  for(const id of S.dirty){
-    const r=S.righe[id];
-    const vuota = !(r.quantita>0) && !r.ordinato && !r.consegnato && !r.note_riga;
-    if(vuota && r.id) del.push(r.id);
-    else if(!vuota) up.push({ id:r.id, ordine_id:r.ordine_id, articolo_id:r.articolo_id, nome_snapshot:r.nome_snapshot,
-      settore:r.settore, lista:r.lista, quantita:r.quantita, qta_richiesta:r.qta_richiesta??null, qta_um:r.qta_um,
-      qta_modif_da:r.qta_modif_da||null, qta_modif_il:r.qta_modif_il||null, fornitore:r.fornitore||null,
-      ordinato:r.ordinato, ordinato_il:r.ordinato_il||null, consegnato:r.consegnato, consegnato_il:r.consegnato_il||null,
-      note_riga:r.note_riga, operatore:r.operatore, aggiornato_il:new Date().toISOString() });
-  }
-  let err=null;
-  if(del.length){ const {error}=await sb.from('ord_righe').delete().in('id',del); if(error) err=error;
-    del.forEach(id=>{ const k=Object.keys(S.righe).find(k=>S.righe[k].id===id); if(k) delete S.righe[k]; }); }
-  if(up.length){
-    const rows=up.map(r=>{ const c={...r}; if(!c.id) delete c.id; return c; });
-    const { data, error } = await sb.from('ord_righe').upsert(rows,{onConflict:'ordine_id,articolo_id'}).select();
-    if(error) err=error; else (data||[]).forEach(r=>{ S.righe[r.articolo_id]=r; });
-  }
-  btn.textContent='💾 Salva';
-  if(err){ alert('Errore nel salvataggio: '+err.message); btn.disabled=false; return; }
-  S.dirty.clear(); aggiornaSaveBar(); toast('Salvato');
-};
+// forza il salvataggio immediato e restituisce la promise (per attendere prima di uscire)
+function salvaOra(){
+  clearTimeout(_saveTimer);
+  return salvaAuto();
+}
+async function salvaAuto(){
+  if(_saving) return _saving;         // se ne sta già girando uno, aggancia quello
+  if(!S.dirty.size) return;
+  _saving = (async ()=>{
+    aggiornaSaveBar('salvo');
+    const ids=[...S.dirty]; S.dirty.clear();
+    const up=[], del=[];
+    for(const id of ids){
+      const r=S.righe[id]; if(!r) continue;
+      const vuota = !(r.quantita>0) && !r.ordinato && !r.consegnato && !r.note_riga;
+      if(vuota && r.id) del.push(r.id);
+      else if(!vuota) up.push({ id:r.id, ordine_id:r.ordine_id, articolo_id:r.articolo_id, nome_snapshot:r.nome_snapshot,
+        settore:r.settore, lista:r.lista, quantita:r.quantita, qta_richiesta:r.qta_richiesta??null, qta_um:r.qta_um,
+        qta_modif_da:r.qta_modif_da||null, qta_modif_il:r.qta_modif_il||null, fornitore:r.fornitore||null,
+        da_riesportare:!!r.da_riesportare,
+        ordinato:r.ordinato, ordinato_il:r.ordinato_il||null, consegnato:r.consegnato, consegnato_il:r.consegnato_il||null,
+        note_riga:r.note_riga, operatore:r.operatore, aggiornato_il:new Date().toISOString() });
+    }
+    let err=null;
+    if(del.length){ const {error}=await sb.from('ord_righe').delete().in('id',del); if(error) err=error;
+      del.forEach(id=>{ const k=Object.keys(S.righe).find(k=>S.righe[k].id===id); if(k) delete S.righe[k]; }); }
+    if(up.length){
+      const rows=up.map(r=>{ const c={...r}; if(!c.id) delete c.id; return c; });
+      const { data, error } = await sb.from('ord_righe').upsert(rows,{onConflict:'ordine_id,articolo_id'}).select();
+      if(error) err=error; else (data||[]).forEach(r=>{ S.righe[r.articolo_id]=r; });
+    }
+    if(err){ ids.forEach(id=>S.dirty.add(id)); aggiornaSaveBar(); toast('Errore salvataggio: '+err.message); }
+    else aggiornaSaveBar();
+  })();
+  try { await _saving; }
+  finally { _saving=null; }
+  // se nel frattempo sono arrivate altre modifiche, salvale subito
+  if(S.dirty.size) return salvaAuto();
+}
 
 /* ---------------- CANCELLAZIONE ---------------- */
 function cancellaOrdine(o){
-  const tardi = isMgr() && !( o.creato_da===S.user.id && (Date.now()-new Date(o.creato_il).getTime())<MIN_CANC*60000 );
+  const mgrForza = isMgr() && haRigheOrdinate();
   modal('Cancellare l\'ordine?', `
     <p><b>${titoloOrdine(o)}</b> — creato da ${esc(o.creato_nome||'—')}.</p>
     <p class="muted">Finisce nel cestino e resta recuperabile per ${GG_CESTINO} giorni. Dopo, viene eliminato definitivamente.</p>
-    ${tardi?'<p class="muted">Stai cancellando fuori dalla finestra dei 20 minuti: puoi farlo perché sei manager.</p>':''}
+    ${mgrForza?'<p class="muted">Attenzione: questo ordine ha già articoli segnati come ordinati. Puoi cancellarlo perché sei manager.</p>':''}
     <label class="f"><span>Conferma col tuo codice personale</span>
       <input class="inp" type="password" id="c-pwd" autocomplete="off"></label>
     <p id="c-err" class="muted hide" style="color:var(--warn)"></p>
@@ -641,7 +690,7 @@ async function ricaricaRighe(){
 const rip = r => `<div class="rep-item"><b>${esc(r.nome_snapshot)}</b> — ${r.quantita} ${esc(r.qta_um||'')}</div>`;
 
 async function fineOrdini(){
-  if(S.dirty.size){ alert('Salva prima le modifiche in sospeso.'); return; }
+  await uscita();  // assicura che tutto sia salvato prima del resoconto
   await ricaricaRighe();
   const manc = Object.values(S.righe).filter(r=>r.quantita>0 && !r.ordinato);
   const tot  = Object.values(S.righe).filter(r=>r.quantita>0).length;
@@ -668,7 +717,7 @@ async function fineOrdini(){
 }
 
 async function fineScarichi(){
-  if(S.dirty.size){ alert('Salva prima le modifiche in sospeso.'); return; }
+  await uscita();  // assicura che tutto sia salvato prima del resoconto
   await ricaricaRighe();
   const manc = Object.values(S.righe).filter(r=>r.ordinato && !r.consegnato);
   const nonOrd = Object.values(S.righe).filter(r=>r.quantita>0 && !r.ordinato);
@@ -1024,7 +1073,7 @@ function schedaUtente(u){
 }
 
 /* ============================================================
-   PDF PER FORNITORE
+   EXPORT PDF — multi-ordine, unico o separato, con flag "ordinato"
    ============================================================ */
 const fornitoreDiRiga = (r,a) => {
   if(r.fornitore) return r.fornitore;
@@ -1032,19 +1081,148 @@ const fornitoreDiRiga = (r,a) => {
   if(!v) return null;
   return v.includes('/') ? null : v;   // multiplo = da scegliere
 };
+// una riga va (ri)esportata se ha quantità e non è ordinata, oppure è stata modificata dopo l'ordine
+const daEsportare = r => r.quantita>0 && (!r.ordinato || r.da_riesportare);
 
-async function esportaPDF(){
-  if(S.dirty.size){ alert('Salva prima le modifiche in sospeso.'); return; }
-  await ricaricaRighe();
-  const righe = Object.values(S.righe).filter(r=>r.quantita>0);
-  if(!righe.length){ alert('Questo ordine non ha ancora quantità da esportare.'); return; }
+// Schermata export lanciata dalla LISTA ordini
+async function vistaExport(){
+  S.view='export'; $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide'); $('#sector-tabs').innerHTML='';
+  $('#h-title').textContent='Esporta ordini'; $('#h-sub').textContent='Scegli gli ordini e il formato';
+  await caricaOrdini();
+  const aperti = S.ordini.filter(o=>o.stato!=='chiuso');
+  if(!aperti.length){ $('#main').innerHTML='<div class="empty">Nessun ordine da esportare.</div>'; return; }
+  $('#main').innerHTML = `
+    <div class="card">
+      <div class="flt-lab">Formato</div>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0"><input type="radio" name="fmt" value="unico" checked>
+        <span><b>PDF unico per fornitore</b><br><span class="muted">Un documento per fornitore che unisce gli ordini scelti, con le righe divise per reparto.</span></span></label>
+      <label style="display:flex;gap:8px;align-items:flex-start"><input type="radio" name="fmt" value="sep">
+        <span><b>Separati per reparto</b><br><span class="muted">Un documento per ogni reparto e fornitore.</span></span></label>
+    </div>
+    <div class="flt-lab" style="margin:4px 0 6px">Ordini da includere</div>
+    ${aperti.map(o=>`<label class="card" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" class="ex-o" value="${o.id}">
+        <div style="flex:1"><div style="font-weight:600">${titoloOrdine(o)}</div>
+          <div class="muted">${o.stato==='ordini_chiusi'?'ordini chiusi':'aperto'} · creato da ${esc(o.creato_nome||'—')}</div></div>
+      </label>`).join('')}
+    <button class="btn full" id="ex-go" style="margin-top:6px">Procedi →</button>`;
+  $('#ex-go').onclick=async()=>{
+    const ids=[...document.querySelectorAll('.ex-o:checked')].map(c=>+c.value);
+    if(!ids.length){ alert('Seleziona almeno un ordine.'); return; }
+    const fmt=document.querySelector('input[name="fmt"]:checked').value;
+    const ordiniSel=aperti.filter(o=>ids.includes(o.id));
+    // carico le righe di tutti gli ordini scelti
+    const { data } = await sb.from('ord_righe').select('*').in('ordine_id',ids);
+    let righe=(data||[]).filter(daEsportare);
+    if(!righe.length){ alert('Gli ordini scelti non hanno articoli nuovi da esportare.'); return; }
+    // assegna fornitore dove manca
+    const daAssegnare=righe.filter(r=>!fornitoreDiRiga(r, S.articoli.find(x=>x.id===r.articolo_id)));
+    const prosegui=()=> fmt==='unico' ? exportUnico(ordiniSel, righe) : exportSeparato(ordiniSel, righe);
+    if(daAssegnare.length) assegnaFornitori(daAssegnare, async()=>{
+      const { data:d2 } = await sb.from('ord_righe').select('*').in('ordine_id',ids);
+      righe=(d2||[]).filter(daEsportare); prosegui();
+    });
+    else prosegui();
+  };
+}
 
-  const daAssegnare = righe.filter(r=>{
-    const a = S.articoli.find(x=>x.id===r.articolo_id);
-    return !fornitoreDiRiga(r,a);
+function ordineDiRiga(r){ return S.ordini.find(o=>o.id===r.ordine_id); }
+
+// PDF UNICO: un file per fornitore, righe divise per ordine/reparto
+function exportUnico(ordini, righe){
+  const perForn={};
+  righe.forEach(r=>{
+    const a=S.articoli.find(x=>x.id===r.articolo_id);
+    const f=fornitoreDiRiga(r,a)||'Senza fornitore';
+    (perForn[f]=perForn[f]||[]).push({r,a});
   });
-  if(daAssegnare.length) return assegnaFornitori(daAssegnare, ()=>esportaPDF());
-  scegliFornitorePDF(righe);
+  cardExport(Object.keys(perForn).sort(), perForn, ordini, 'unico');
+}
+// SEPARATI: un file per (reparto, fornitore)
+function exportSeparato(ordini, righe){
+  const gruppi={}; // chiave "settore||fornitore"
+  righe.forEach(r=>{
+    const a=S.articoli.find(x=>x.id===r.articolo_id);
+    const f=fornitoreDiRiga(r,a)||'Senza fornitore';
+    const k=r.settore+'||'+f;
+    (gruppi[k]=gruppi[k]||{settore:r.settore,forn:f,voci:[]}).voci.push({r,a});
+  });
+  cardExportSep(gruppi, ordini);
+}
+
+function bloccoAzioni(idx, email){
+  return `<button class="btn ghost" data-pdf="${idx}" style="padding:8px 12px">📄</button>
+    <button class="btn ghost" data-shr="${idx}" style="padding:8px 12px">📤</button>
+    ${email?`<button class="btn ghost" data-mail="${idx}" style="padding:8px 12px">✉️</button>`:''}`;
+}
+
+function cardExport(nomi, perForn, ordini, modoFmt){
+  modal('PDF unico per fornitore',
+    `<p class="muted">Un documento per fornitore. Dopo la generazione puoi segnare gli articoli come ordinati.</p>
+     ${nomi.map((n,i)=>{ const f=S.fornitori.find(x=>x.nome===n);
+       return `<div class="card" style="display:flex;align-items:center;gap:8px">
+         <div style="flex:1"><div style="font-weight:600">${esc(n)}</div>
+           <div class="muted">${perForn[n].length} articoli${f?.email?' · '+esc(f.email):''}</div></div>
+         ${bloccoAzioni(i, f?.email)}</div>`; }).join('')}
+     <button class="btn ghost full" id="m-x" style="margin-top:8px">Chiudi</button>`,
+    sh=>{
+      sh.querySelector('#m-x').onclick=()=>{ chiudiModal(); vistaOrdini(); };
+      const run=(i,modo)=>{ const n=nomi[i]; generaPDF(n, perForn[n], modo, ordini, true); chiediFlag(n, perForn[n]); };
+      sh.querySelectorAll('[data-pdf]').forEach(b=>b.onclick=()=>run(+b.dataset.pdf,'save'));
+      sh.querySelectorAll('[data-shr]').forEach(b=>b.onclick=()=>run(+b.dataset.shr,'share'));
+      sh.querySelectorAll('[data-mail]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.mail,n=nomi[i],f=S.fornitori.find(x=>x.nome===n);
+        generaPDF(n, perForn[n],'save', ordini, true); apriMail(f); chiediFlag(n, perForn[n]); });
+    });
+}
+
+function cardExportSep(gruppi, ordini){
+  const chiavi=Object.keys(gruppi).sort();
+  modal('Separati per reparto',
+    `<p class="muted">Un documento per ogni reparto e fornitore.</p>
+     ${chiavi.map((k,i)=>{ const g=gruppi[k], f=S.fornitori.find(x=>x.nome===g.forn);
+       return `<div class="card" style="display:flex;align-items:center;gap:8px">
+         <div style="flex:1"><div style="font-weight:600">${esc(g.forn)}</div>
+           <div class="muted">${nomeSettore(g.settore)} · ${g.voci.length} articoli</div></div>
+         ${bloccoAzioni(i, f?.email)}</div>`; }).join('')}
+     <button class="btn ghost full" id="m-x" style="margin-top:8px">Chiudi</button>`,
+    sh=>{
+      sh.querySelector('#m-x').onclick=()=>{ chiudiModal(); vistaOrdini(); };
+      const run=(i,modo)=>{ const g=gruppi[chiavi[i]]; generaPDF(g.forn, g.voci, modo, ordini.filter(o=>o.settore===g.settore), false); chiediFlag(g.forn, g.voci); };
+      sh.querySelectorAll('[data-pdf]').forEach(b=>b.onclick=()=>run(+b.dataset.pdf,'save'));
+      sh.querySelectorAll('[data-shr]').forEach(b=>b.onclick=()=>run(+b.dataset.shr,'share'));
+      sh.querySelectorAll('[data-mail]').forEach(b=>b.onclick=()=>{ const g=gruppi[chiavi[+b.dataset.mail]],f=S.fornitori.find(x=>x.nome===g.forn);
+        generaPDF(g.forn,g.voci,'save',ordini.filter(o=>o.settore===g.settore),false); apriMail(f); chiediFlag(g.forn,g.voci); });
+    });
+}
+
+function apriMail(f){
+  if(!f?.email) return;
+  const ogg=encodeURIComponent('Ordine Grotta Marcello');
+  const corpo=encodeURIComponent('Buongiorno,\nin allegato il nostro ordine.\n\nGrazie,\nGrotta Marcello');
+  setTimeout(()=>{ location.href=`mailto:${f.email}?subject=${ogg}&body=${corpo}`; }, 700);
+}
+
+// Conferma flag "ordinato" solo sulle righe esportate
+function chiediFlag(fornitore, voci){
+  const daFlag=voci.filter(({r})=>!r.ordinato || r.da_riesportare);
+  if(!daFlag.length) return;
+  modal('Segno come ordinati?',
+    `<p>Vuoi segnare come <b>ordinati</b> i ${daFlag.length} articoli di <b>${esc(fornitore)}</b> appena esportati?</p>
+     <p class="muted">Solo questi articoli. Ciò che è già consegnato non viene toccato.</p>
+     <div style="display:flex;gap:8px;margin-top:10px">
+       <button class="btn ghost" style="flex:1" id="m-no">No, solo PDF</button>
+       <button class="btn" style="flex:1" id="m-si">Sì, segna ordinati</button></div>`,
+    sh=>{
+      sh.querySelector('#m-no').onclick=chiudiModal;
+      sh.querySelector('#m-si').onclick=async()=>{
+        const now=new Date().toISOString();
+        const ids=daFlag.map(({r})=>r.id).filter(Boolean);
+        const { error } = await sb.from('ord_righe').update({ordinato:true, ordinato_il:now, da_riesportare:false, esportato_il:now}).in('id',ids);
+        if(error){ alert('Errore: '+error.message); return; }
+        daFlag.forEach(({r})=>{ r.ordinato=true; r.da_riesportare=false; });
+        chiudiModal(); toast(daFlag.length+' articoli segnati come ordinati');
+      };
+    });
 }
 
 function assegnaFornitori(righe, poi){
@@ -1083,106 +1261,61 @@ function assegnaFornitori(righe, poi){
     });
 }
 
-function scegliFornitorePDF(righe){
-  const gruppi = {};
-  righe.forEach(r=>{
-    const a=S.articoli.find(x=>x.id===r.articolo_id);
-    const f=fornitoreDiRiga(r,a) || 'Senza fornitore';
-    (gruppi[f]=gruppi[f]||[]).push({r,a});
-  });
-  const nomi=Object.keys(gruppi).sort();
-  modal('Esporta PDF · '+titoloOrdine(S.ordine),
-    `<p class="muted">Un documento per ogni fornitore.</p>
-     ${nomi.map(n=>{
-       const f=S.fornitori.find(x=>x.nome===n);
-       return `<div class="card" style="display:flex;align-items:center;gap:8px">
-         <div style="flex:1">
-           <div style="font-weight:600">${esc(n)}</div>
-           <div class="muted">${gruppi[n].length} articoli${f?.email?' · '+esc(f.email):' · nessuna email in anagrafica'}</div>
-         </div>
-         <button class="btn ghost" data-pdf="${esc(n)}" style="padding:8px 12px">📄</button>
-         <button class="btn ghost" data-shr="${esc(n)}" style="padding:8px 12px">📤</button>
-         ${f?.email?`<button class="btn ghost" data-mail="${esc(n)}" style="padding:8px 12px">✉️</button>`:''}
-       </div>`;
-     }).join('')}
-     <p class="muted" style="margin-top:10px">📄 scarica · 📤 condividi (telefono) · ✉️ apri email già compilata, poi allega il PDF scaricato</p>
-     <button class="btn ghost full" id="m-x" style="margin-top:8px">Chiudi</button>`,
-    sh=>{
-      sh.querySelector('#m-x').onclick=chiudiModal;
-      sh.querySelectorAll('[data-pdf]').forEach(b=>b.onclick=()=>generaPDF(b.dataset.pdf, gruppi[b.dataset.pdf],'save'));
-      sh.querySelectorAll('[data-shr]').forEach(b=>b.onclick=()=>generaPDF(b.dataset.shr, gruppi[b.dataset.shr],'share'));
-      sh.querySelectorAll('[data-mail]').forEach(b=>b.onclick=()=>{
-        const n=b.dataset.mail, f=S.fornitori.find(x=>x.nome===n);
-        generaPDF(n, gruppi[n], 'save');
-        const ogg=encodeURIComponent(`Ordine Grotta Marcello ${dataIT(S.ordine.data)} — ${nomeSettore(S.ordine.settore)}`);
-        const corpo=encodeURIComponent(`Buongiorno,\nin allegato l'ordine del ${dataIT(S.ordine.data)} per ${nomeSettore(S.ordine.settore)}.\n\nGrazie,\nGrotta Marcello`);
-        setTimeout(()=>{ location.href=`mailto:${f.email}?subject=${ogg}&body=${corpo}`; }, 700);
-      });
-    });
-}
-
-function generaPDF(fornitore, voci, modo){
+// genera il PDF. Se dividiPerReparto=true, mette un sottotitolo per ogni settore.
+function generaPDF(fornitore, voci, modo, ordini, dividiPerReparto){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'mm', format:'a4'});
-  const o = S.ordine;
-  const VIOLA = [107,61,92];      // #6B3D5C
-  const GRIGIO = [123,107,117];
+  const VIOLA = [107,61,92], GRIGIO = [123,107,117];
   const pw = doc.internal.pageSize.getWidth();
   let y = 14;
-
-  // --- logo centrato (piccolo) ---
   if(typeof GM_LOGO !== 'undefined'){
     const lw = 42, lh = lw * (typeof GM_LOGO_RATIO!=='undefined'?GM_LOGO_RATIO:0.4269);
-    try { doc.addImage(GM_LOGO, 'JPEG', (pw-lw)/2, y, lw, lh); y += lh + 3; }
-    catch(e){ y += 2; }
-  } else {
-    doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(...VIOLA);
-    doc.text('GROTTA MARCELLO', pw/2, y+6, {align:'center'}); y += 12;
-  }
-  // linea viola
-  doc.setDrawColor(...VIOLA); doc.setLineWidth(0.6);
-  doc.line(16, y, pw-16, y); y += 7;
+    try { doc.addImage(GM_LOGO, 'JPEG', (pw-lw)/2, y, lw, lh); y += lh + 3; } catch(e){ y += 2; }
+  } else { doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(...VIOLA); doc.text('GROTTA MARCELLO', pw/2, y+6, {align:'center'}); y += 12; }
+  doc.setDrawColor(...VIOLA); doc.setLineWidth(0.6); doc.line(16, y, pw-16, y); y += 7;
 
-  // --- intestazione: sinistra dati ordine, destra fornitore ---
+  const date=[...new Set((ordini||[]).map(o=>dataIT(o.data)))].join(', ');
   doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0);
   doc.text('ORDINE FORNITORE', 16, y);
   doc.setFont('helvetica','bold'); doc.setTextColor(...VIOLA); doc.setFontSize(11);
-  doc.text(String(fornitore), pw-16, y, {align:'right'});
-  y += 5;
+  doc.text(String(fornitore), pw-16, y, {align:'right'}); y += 5;
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...GRIGIO);
-  doc.text('Data ordine: ' + dataIT(o.data), 16, y);
+  doc.text('Data: ' + (date||dataIT(oggi())), 16, y);
   const forn = S.fornitori.find(f=>f.nome===fornitore);
-  if(forn?.email){ doc.text(forn.email, pw-16, y, {align:'right'}); }
-  y += 4.5;
-  doc.text('Reparto: ' + nomeSettore(o.settore), 16, y); y += 4.5;
-  doc.text('Compilato da: ' + S.user.nome, 16, y); y += 6;
+  if(forn?.email) doc.text(forn.email, pw-16, y, {align:'right'});
+  y += 4.5; doc.text('Compilato da: ' + S.user.nome, 16, y); y += 6;
 
-  // --- tabella: Codice | Prodotto | Q.tà | U.M. | Note ---
-  doc.autoTable({
-    startY: y,
-    head: [['Codice','Prodotto','Q.tà','U.M.','Note']],
-    body: voci.map(({r,a})=>[ a?.codice||'', r.nome_snapshot, String(r.quantita), r.qta_um||(a?.um||''), r.note_riga||'' ]),
-    styles:{ fontSize:9, cellPadding:2.6, textColor:[40,40,40] },
-    headStyles:{ fillColor:VIOLA, textColor:255, fontStyle:'bold' },
-    alternateRowStyles:{ fillColor:[242,234,239] },
-    columnStyles:{ 0:{cellWidth:22}, 1:{cellWidth:74}, 2:{cellWidth:14, halign:'right'}, 3:{cellWidth:16}, 4:{cellWidth:52, textColor:GRIGIO, fontSize:8.5} },
-    margin:{ left:16, right:16 }
-  });
+  const colStyle={ 0:{cellWidth:22}, 1:{cellWidth:74}, 2:{cellWidth:14, halign:'right'}, 3:{cellWidth:16}, 4:{cellWidth:52, textColor:GRIGIO, fontSize:8.5} };
+  const head=[['Codice','Prodotto','Q.tà','U.M.','Note']];
+  const stampaTabella=(startY, righe)=>{
+    doc.autoTable({ startY, head, body: righe.map(({r,a})=>[ a?.codice||'', r.nome_snapshot, String(r.quantita), r.qta_um||(a?.um||''), r.note_riga||'' ]),
+      styles:{ fontSize:9, cellPadding:2.6, textColor:[40,40,40] },
+      headStyles:{ fillColor:VIOLA, textColor:255, fontStyle:'bold' },
+      alternateRowStyles:{ fillColor:[242,234,239] }, columnStyles:colStyle, margin:{left:16,right:16} });
+    return doc.lastAutoTable.finalY;
+  };
 
-  let yf = doc.lastAutoTable.finalY + 6;
+  if(dividiPerReparto){
+    const perSet={}; voci.forEach(v=>{ (perSet[v.r.settore]=perSet[v.r.settore]||[]).push(v); });
+    Object.keys(perSet).sort().forEach(set=>{
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...VIOLA);
+      doc.text(nomeSettore(set), 16, y+1); y+=2;
+      y = stampaTabella(y+2, perSet[set]) + 7;
+    });
+  } else {
+    y = stampaTabella(y, voci) + 6;
+  }
+
   doc.setFontSize(9); doc.setTextColor(...GRIGIO);
-  doc.text(`${voci.length} ${voci.length===1?'articolo':'articoli'} · generato il ${new Date().toLocaleString('it-IT')}`, 16, yf);
-
-  // piè di pagina
+  doc.text(`${voci.length} ${voci.length===1?'articolo':'articoli'} · generato il ${new Date().toLocaleString('it-IT')}`, 16, y);
   const ph = doc.internal.pageSize.getHeight();
   doc.setFontSize(8); doc.setTextColor(...GRIGIO);
   doc.text('Grotta Marcello · Rifugio del gusto · Cagliari', pw/2, ph-12, {align:'center'});
 
-  const nomeFile = `Ordine_${o.data}_${nomeSettore(o.settore).replace(/\s/g,'')}_${fornitore.replace(/[^\w]/g,'')}.pdf`;
+  const nomeFile = `Ordine_${(ordini&&ordini[0]?ordini[0].data:oggi())}_${fornitore.replace(/[^\w]/g,'')}.pdf`;
   if(modo==='share' && navigator.share){
-    const blob = doc.output('blob');
-    const file = new File([blob], nomeFile, {type:'application/pdf'});
-    navigator.share({ files:[file], title:nomeFile }).catch(()=>doc.save(nomeFile));
+    const blob=doc.output('blob'); const file=new File([blob],nomeFile,{type:'application/pdf'});
+    navigator.share({files:[file], title:nomeFile}).catch(()=>doc.save(nomeFile));
   } else doc.save(nomeFile);
 }
 
