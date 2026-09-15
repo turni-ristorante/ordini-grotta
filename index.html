@@ -234,7 +234,23 @@ $('#btn-login').onclick = async () => {
   await Promise.all([caricaArticoli(), caricaUM(), caricaChip(), caricaFornitori()]);
   if(isMgr()) svuotaCestinoVecchio();
   vistaOrdini();
+  if(vedeListino()) avvisaLibere();   // segnala i prodotti fuori anagrafica da valutare
 };
+async function contaLibereDaValutare(){
+  const { data } = await sb.from('ord_righe').select('id').eq('libera',true).eq('valutata',false).gt('quantita',0);
+  return (data||[]).length;
+}
+async function avvisaLibere(){
+  const n = await contaLibereDaValutare();
+  if(!n) return;
+  modal('Prodotti da valutare',
+    `<p>Ci sono <b>${n} prodotti fuori anagrafica</b> inseriti dagli operatori, in attesa di una decisione.</p>
+     <p class="muted">Puoi aggiungerli al listino o lasciarli come voci una tantum.</p>
+     <div style="display:flex;gap:8px;margin-top:10px">
+       <button class="btn ghost" style="flex:1" id="m-x">Più tardi</button>
+       <button class="btn" style="flex:1" id="m-ok">Vedi ora</button></div>`,
+    sh=>{ sh.querySelector('#m-x').onclick=chiudiModal; sh.querySelector('#m-ok').onclick=()=>{ chiudiModal(); vistaDaValutare(); }; });
+}
 $('#in-code').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#btn-login').click(); });
 window.addEventListener('load', ()=>{ const c=leggiCodice(); if(c){ $('#in-code').value=c; $('#btn-login').click(); }});
 // salva il lavoro se la pagina sta per chiudersi/aggiornarsi
@@ -296,6 +312,7 @@ document.addEventListener('click', e=>{ if(e.target && e.target.id==='btn-top') 
 function menu(){
   const v=[['ordini','📋 Ordini'],
     vedeListino()?['archivio','🔎 Archivio ordini']:null,
+    vedeListino()?['valutare','🆕 Prodotti da valutare']:null,
     ['cestino','🗑 Cestino'],['anagrafica','📖 Anagrafica articoli'],
     vedeListino()?['fornitori','🚚 Fornitori']:null,
     vedeListino()?['chip','🏷 Filtri e categorie']:null,
@@ -306,7 +323,7 @@ function menu(){
       chiudiModal();
       if(b.dataset.go==='logout'){ await uscita(); dimenticaCodice(); location.reload(); return; }
       await uscita();
-      ({ordini:vistaOrdini, archivio:vistaArchivio, cestino:vistaCestino, anagrafica:vistaAnagrafica,
+      ({ordini:vistaOrdini, archivio:vistaArchivio, valutare:vistaDaValutare, cestino:vistaCestino, anagrafica:vistaAnagrafica,
         fornitori:vistaFornitori, chip:vistaChip, um:vistaUM, utenti:vistaUtenti})[b.dataset.go]();
     }));
 }
@@ -377,7 +394,8 @@ async function apriOrdine(o){
   S.ordine=o; S.view='ordine'; S.dirty.clear(); S.righe={}; S.q=''; S.fRep=null; S.fCat=null; S.fPos=null; S.soloQta=false;
   S.lista = SETTORI[o.settore].liste.length>1 ? null : SETTORI[o.settore].liste[0];
   const { data } = await sb.from('ord_righe').select('*').eq('ordine_id',o.id);
-  (data||[]).forEach(r=>{ if(r.articolo_id) S.righe[r.articolo_id]=r; });
+  S.righe={}; S.libere=[];
+  (data||[]).forEach(r=>{ if(r.libera) S.libere.push(r); else if(r.articolo_id) S.righe[r.articolo_id]=r; });
   $('#btn-back').classList.remove('hide');
   renderOrdine();
   if(vedeListino() && !S.alertVisto) alertPrezzi();
@@ -453,7 +471,10 @@ function renderOrdine(){
       <button class="chip pos ${!S.fPos?'on':''}" data-p="">Tutte</button>
       ${poss.map(p=>`<button class="chip pos ${S.fPos===p?'on':''}" data-p="${esc(p)}">${esc(p)}</button>`).join('')}
     </div></div>`:''}
-    <div id="list">${art.map(cardArticolo).join('')||'<div class="empty">Nessun articolo con questi filtri.</div>'}</div>`;
+    <div id="list">${art.map(cardArticolo).join('')||'<div class="empty">Nessun articolo con questi filtri.</div>'}</div>
+    <div class="flt-lab" style="margin:16px 0 6px">Prodotti fuori anagrafica</div>
+    <div id="libere">${(S.libere||[]).map(cardLibera).join('')}</div>
+    ${puoQta(o)?`<button class="btn ghost full" id="btn-libera" style="margin-top:4px">＋ Aggiungi prodotto non in elenco</button>`:''}`;
 
   $('#q').oninput=e=>{ S.q=e.target.value; $('#list').innerHTML=articoliVisibili().map(cardArticolo).join('')||'<div class="empty">Nessun risultato.</div>'; bindRighe(); };
   $('#f-qta').onclick=()=>{ S.soloQta=!S.soloQta; renderOrdine(); };
@@ -462,7 +483,8 @@ function renderOrdine(){
   $('#main').querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{ S.fPos=b.dataset.p||null; renderOrdine(); });
   if(puoFlaggare()){ $('#btn-fo').onclick=fineOrdini; $('#btn-fs').onclick=fineScarichi; }
   if(puoCancellare(o)) $('#btn-del').onclick=()=>cancellaOrdine(o);
-  bindRighe(); aggiornaSaveBar();
+  if(puoQta(o) && $('#btn-libera')) $('#btn-libera').onclick=aggiungiLibera;
+  bindRighe(); bindLibere(); aggiornaSaveBar();
 }
 
 function cardArticolo(a){
@@ -520,6 +542,93 @@ function badgeDiscrepanza(r){
   const quando = r.qta_modif_il ? new Date(r.qta_modif_il).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
   return `<div class="dif">richiesti <b>${r.qta_richiesta}</b> → ordinati <b>${r.quantita??0}</b> ${esc(r.qta_um||'')} · modifica di ${esc(r.qta_modif_da)} ${quando}</div>`;
 }
+
+/* ---------------- RIGHE LIBERE (fuori anagrafica) ---------------- */
+function cardLibera(r, i){
+  const edit = puoModificaRiga(r);
+  const promuovi = vedeListino() && !r.promossa_articolo_id;
+  return `<div class="art" data-lib="${i}" style="border-style:dashed">
+    <div class="art-top">
+      <div style="flex:1;min-width:0">
+        <input class="inp lib-nome" placeholder="Nome prodotto" value="${esc(r.nome_snapshot||'')}" ${edit?'':'disabled'} style="font-weight:600;margin-bottom:4px">
+        <div class="art-meta"><span class="badge b-warn">fuori anagrafica</span>
+          ${r.ordinato?'<span class="badge b-ord">ordinato</span>':''}
+          ${r.valutata?'<span class="badge b-clo">valutato</span>':''}</div>
+      </div>
+      <div class="qty">
+        <input type="number" inputmode="decimal" step="any" min="0" placeholder="0" class="lib-qta" value="${r.quantita??''}" ${edit?'':'disabled'}>
+        <input class="lib-um" placeholder="U.M." value="${esc(r.qta_um||'')}" ${edit?'':'disabled'} style="width:56px;padding:9px 6px;border:1px solid var(--line);border-radius:9px;text-align:center">
+      </div>
+    </div>
+    <div class="notebox"><input class="lib-note" placeholder="Nota…" value="${esc(r.note_riga||'')}" ${edit?'':'disabled'}></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      ${promuovi?'<button class="btn ghost" data-promuovi="'+i+'" style="flex:1;padding:8px">➕ Aggiungi a listino</button>':''}
+      ${edit?'<button class="btn ghost" data-dellib="'+i+'" style="padding:8px 12px">🗑</button>':''}
+    </div>
+  </div>`;
+}
+
+function aggiungiLibera(){
+  const o=S.ordine;
+  S.libere.push({ ordine_id:o.id, articolo_id:null, libera:true, nome_snapshot:'', settore:o.settore, lista:o.lista||null,
+    quantita:null, qta_um:'', note_riga:null, operatore:S.user.nome, ordinato:false, consegnato:false, valutata:false });
+  $('#libere').innerHTML = S.libere.map(cardLibera).join('');
+  bindLibere();
+  // porta il focus sull'ultima riga aggiunta
+  const box=$('#libere'); const inputs=box.querySelectorAll('.lib-nome'); if(inputs.length) inputs[inputs.length-1].focus();
+}
+
+function bindLibere(){
+  const box=$('#libere'); if(!box) return;
+  box.querySelectorAll('[data-lib]').forEach(card=>{
+    const i=+card.dataset.lib, r=S.libere[i]; if(!r) return;
+    const salva=()=>salvaLibera(i);
+    const nome=card.querySelector('.lib-nome'), qta=card.querySelector('.lib-qta'),
+          um=card.querySelector('.lib-um'), note=card.querySelector('.lib-note');
+    if(nome) nome.onchange=e=>{ r.nome_snapshot=e.target.value.trim(); salva(); };
+    if(qta) qta.onchange=e=>{ const v=parseFloat(e.target.value); r.quantita=isNaN(v)?null:v; salva(); };
+    if(um) um.onchange=e=>{ r.qta_um=e.target.value.trim(); salva(); };
+    if(note) note.onchange=e=>{ r.note_riga=e.target.value.trim()||null; salva(); };
+    const bp=card.querySelector('[data-promuovi]'); if(bp) bp.onclick=()=>promuoviLibera(i);
+    const bd=card.querySelector('[data-dellib]'); if(bd) bd.onclick=()=>eliminaLibera(i);
+  });
+}
+
+async function salvaLibera(i){
+  const r=S.libere[i]; if(!r) return;
+  if(!r.nome_snapshot || !(r.quantita>0)) return;   // salva solo righe sensate
+  const rec={ ordine_id:r.ordine_id, articolo_id:null, libera:true, nome_snapshot:r.nome_snapshot,
+    settore:r.settore, lista:r.lista, quantita:r.quantita, qta_um:r.qta_um||null, note_riga:r.note_riga||null,
+    operatore:r.operatore, ordinato:!!r.ordinato, consegnato:!!r.consegnato, valutata:!!r.valutata,
+    aggiornato_il:new Date().toISOString() };
+  if(r.id){ const {error}=await sb.from('ord_righe').update(rec).eq('id',r.id); if(error){ toast('Errore: '+error.message); return; } }
+  else { const {data,error}=await sb.from('ord_righe').insert(rec).select().single(); if(error){ toast('Errore: '+error.message); return; } r.id=data.id; }
+  toast('Salvato');
+}
+
+async function eliminaLibera(i){
+  const r=S.libere[i]; if(!r) return;
+  if(!confirm('Eliminare questa riga?')) return;
+  if(r.id) await sb.from('ord_righe').delete().eq('id',r.id);
+  S.libere.splice(i,1);
+  $('#libere').innerHTML=S.libere.map(cardLibera).join(''); bindLibere();
+}
+
+// il responsabile/manager crea la scheda anagrafica dalla riga libera
+function promuoviLibera(i){
+  const r=S.libere[i]; if(!r) return;
+  const finto={ settore:r.settore, lista:r.lista||SETTORI[r.settore].liste[0], nome:r.nome_snapshot,
+    um:r.qta_um||S.um[0], reparti:(r.settore==='cucina'?['Cucina']:[]), attivo:true, seq:999 };
+  schedaArticolo(finto, async()=>{
+    // dopo il salvataggio dell'articolo, collega la riga libera
+    await caricaArticoli();
+    const nuovo=S.articoli.find(x=>x.settore===finto.settore && x.nome===finto.nome);
+    if(nuovo && r.id){ await sb.from('ord_righe').update({valutata:true, promossa_articolo_id:nuovo.id}).eq('id',r.id); r.valutata=true; r.promossa_articolo_id=nuovo.id; }
+    $('#libere').innerHTML=S.libere.map(cardLibera).join(''); bindLibere();
+    toast('Aggiunto a listino');
+  });
+}
+
 
 function bindRighe(){
   const art = id => S.articoli.find(x=>x.id==id);
@@ -987,11 +1096,17 @@ function schedaArticolo(a, done){
         <button class="btn" style="flex:1" id="m-ok">💾 Salva</button></div>`
     :'<button class="btn ghost full" id="m-x">Chiudi</button>'}`,
    sh=>{
-     sh.querySelector('#m-x').onclick=chiudiModal;
+     let modificato=false;
+     const segnaMod=()=>{ modificato=true; };
+     const chiudiSicuro=()=>{ if(modificato && !confirm('Hai modifiche non salvate. Uscire senza salvare?')) return; chiudiModal(); };
+     sh.querySelector('#m-x').onclick=chiudiSicuro;
+     // intercetta anche il tap fuori dalla scheda
+     const ov=sh.closest('.ov'); if(ov) ov.onclick=e=>{ if(e.target===ov) chiudiSicuro(); };
      if(ro) return;
+     sh.querySelectorAll('[data-k]').forEach(i=>{ i.addEventListener('input',segnaMod); i.addEventListener('change',segnaMod); });
      const repSel = new Set(a.reparti||[]);
      const repBtns = sh.querySelectorAll('#a-rep [data-r]');
-     repBtns.forEach(b=>b.onclick=()=>{ const r=b.dataset.r; repSel.has(r)?repSel.delete(r):repSel.add(r); b.classList.toggle('on'); });
+     repBtns.forEach(b=>b.onclick=()=>{ const r=b.dataset.r; repSel.has(r)?repSel.delete(r):repSel.add(r); b.classList.toggle('on'); segnaMod(); });
      // mostra/nasconde reparto in base al settore scelto
      const setSel = sh.querySelector('[data-k="settore"]');
      const repField = sh.querySelector('.rep-field');
@@ -1002,6 +1117,7 @@ function schedaArticolo(a, done){
        await caricaArticoli(); chiudiModal(); done(); toast('Articolo eliminato');
      };
      sh.querySelector('#m-ok').onclick=async()=>{
+       modificato=false;   // stiamo salvando: niente avviso
        const rec={...a};
        sh.querySelectorAll('[data-k]').forEach(i=>{
          let v = i.value; if(typeof v==='string') v=v.trim();
@@ -1010,9 +1126,9 @@ function schedaArticolo(a, done){
        });
        const haRep = repartiDi(rec.settore).length>0;
        rec.reparti = haRep ? [...repSel] : [];
-       if(!rec.nome){ alert('Il nome è obbligatorio.'); return; }
+       if(!rec.nome){ alert('Il nome è obbligatorio.'); modificato=true; return; }
        if(haRep && !rec.reparti.length){
-         alert('Scegli almeno un reparto.\n\nSenza reparto l\'articolo non comparirebbe in nessun ordine.'); return;
+         alert('Scegli almeno un reparto.\n\nSenza reparto l\'articolo non comparirebbe in nessun ordine.'); modificato=true; return;
        }
        rec.aggiornato_il=new Date().toISOString(); delete rec.creato_il;
        const { error } = rec.id ? await sb.from('ord_articoli').update(rec).eq('id',rec.id)
@@ -1111,22 +1227,99 @@ async function vistaExport(){
     if(!ids.length){ alert('Seleziona almeno un ordine.'); return; }
     const fmt=document.querySelector('input[name="fmt"]:checked').value;
     const ordiniSel=aperti.filter(o=>ids.includes(o.id));
-    // carico le righe di tutti gli ordini scelti
     const { data } = await sb.from('ord_righe').select('*').in('ordine_id',ids);
-    let righe=(data||[]).filter(daEsportare);
-    if(!righe.length){ alert('Gli ordini scelti non hanno articoli nuovi da esportare.'); return; }
-    // assegna fornitore dove manca
-    const daAssegnare=righe.filter(r=>!fornitoreDiRiga(r, S.articoli.find(x=>x.id===r.articolo_id)));
-    const prosegui=()=> fmt==='unico' ? exportUnico(ordiniSel, righe) : exportSeparato(ordiniSel, righe);
-    if(daAssegnare.length) assegnaFornitori(daAssegnare, async()=>{
-      const { data:d2 } = await sb.from('ord_righe').select('*').in('ordine_id',ids);
-      righe=(d2||[]).filter(daEsportare); prosegui();
-    });
-    else prosegui();
+    const conQta=(data||[]).filter(r=>r.quantita>0);
+    // sempre incluse: nuove o modificate dopo l'ordine
+    const sempre = conQta.filter(daEsportare);
+    // gia' ordinate (e non modificate): da proporre
+    const giaOrd = conQta.filter(r=>r.ordinato && !r.da_riesportare);
+    if(!sempre.length && !giaOrd.length){ alert('Gli ordini scelti non hanno articoli da esportare.'); return; }
+
+    const continua = (righe)=>{
+      if(!righe.length){ alert('Nessun articolo selezionato per l\'esportazione.'); return; }
+      const selIds = righe.map(r=>r.id);
+      const daAssegnare=righe.filter(r=>!fornitoreDiRiga(r, S.articoli.find(x=>x.id===r.articolo_id)));
+      const lancia=(rr)=> fmt==='unico' ? exportUnico(ordiniSel, rr) : exportSeparato(ordiniSel, rr);
+      if(daAssegnare.length) assegnaFornitori(daAssegnare, async()=>{
+        const { data:d2 } = await sb.from('ord_righe').select('*').in('ordine_id',ids);
+        lancia((d2||[]).filter(r=>selIds.includes(r.id)));
+      });
+      else lancia(righe);
+    };
+
+    if(giaOrd.length){
+      // chiede quali già-ordinati reinserire
+      modal('Alcuni sono già ordinati',
+        `<p>${giaOrd.length} articoli di questi ordini risultano <b>già ordinati</b>. Vuoi reinserirli nel PDF?</p>
+         <p class="muted">Spunta quelli da includere. Resteranno comunque segnati come ordinati.</p>
+         <div style="max-height:46vh;overflow:auto">
+         ${giaOrd.map((r,i)=>`<label class="card" style="display:flex;gap:8px;align-items:center;padding:9px">
+             <input type="checkbox" class="ro" data-i="${i}">
+             <div style="flex:1"><b>${esc(r.nome_snapshot)}</b> — ${r.quantita} ${esc(r.qta_um||'')}
+             <div class="muted">${nomeSettore(r.settore)}${r.fornitore?' · '+esc(r.fornitore):''}</div></div>
+           </label>`).join('')}
+         </div>
+         <div style="display:flex;gap:8px;margin-top:6px">
+           <button class="btn ghost" id="ro-none">Nessuno</button>
+           <button class="btn ghost" id="ro-all">Tutti</button>
+         </div>
+         <div style="display:flex;gap:8px;margin-top:10px">
+           <button class="btn ghost" style="flex:1" id="m-x">Annulla</button>
+           <button class="btn" style="flex:1" id="m-ok">Continua</button></div>`,
+        sh=>{
+          sh.querySelector('#ro-all').onclick=()=>sh.querySelectorAll('.ro').forEach(c=>c.checked=true);
+          sh.querySelector('#ro-none').onclick=()=>sh.querySelectorAll('.ro').forEach(c=>c.checked=false);
+          sh.querySelector('#m-x').onclick=chiudiModal;
+          sh.querySelector('#m-ok').onclick=()=>{
+            const reins=[...sh.querySelectorAll('.ro:checked')].map(c=>giaOrd[+c.dataset.i]);
+            chiudiModal();
+            continua([...sempre, ...reins]);
+          };
+        });
+    } else {
+      continua(sempre);
+    }
   };
 }
 
 function ordineDiRiga(r){ return S.ordini.find(o=>o.id===r.ordine_id); }
+
+/* ---------------- PRODOTTI DA VALUTARE (righe libere) ---------------- */
+async function vistaDaValutare(){
+  S.view='valutare'; $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide'); $('#sector-tabs').innerHTML='';
+  $('#h-title').textContent='Prodotti da valutare'; $('#h-sub').textContent='Voci fuori anagrafica inserite dagli operatori';
+  await caricaOrdini();
+  const { data } = await sb.from('ord_righe').select('*').eq('libera',true).eq('valutata',false).gt('quantita',0).order('ordine_id');
+  const righe=data||[];
+  if(!righe.length){ $('#main').innerHTML='<div class="empty">Niente da valutare. Tutto sistemato.</div>'; return; }
+  $('#main').innerHTML = righe.map((r,i)=>{
+    const o=ordineDiRiga(r);
+    return `<div class="card" data-v="${i}">
+      <div style="font-weight:600">${esc(r.nome_snapshot)} <span class="muted">— ${r.quantita} ${esc(r.qta_um||'')}</span></div>
+      <div class="muted">${o?titoloOrdine(o):''}${r.note_riga?' · '+esc(r.note_riga):''} · inserito da ${esc(r.operatore||'—')}</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn" style="flex:1" data-add="${i}">➕ Aggiungi a listino</button>
+        <button class="btn ghost" data-skip="${i}">Lascia una tantum</button>
+      </div></div>`;
+  }).join('');
+  $('#main').querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{
+    const r=righe[+b.dataset.add];
+    const finto={ settore:r.settore, lista:r.lista||SETTORI[r.settore].liste[0], nome:r.nome_snapshot,
+      um:r.qta_um||S.um[0], reparti:(r.settore==='cucina'?['Cucina']:[]), attivo:true, seq:999 };
+    schedaArticolo(finto, async()=>{
+      await caricaArticoli();
+      const nuovo=S.articoli.find(x=>x.settore===finto.settore && x.nome===finto.nome);
+      if(nuovo) await sb.from('ord_righe').update({valutata:true, promossa_articolo_id:nuovo.id}).eq('id',r.id);
+      toast('Aggiunto a listino'); vistaDaValutare();
+    });
+  });
+  $('#main').querySelectorAll('[data-skip]').forEach(b=>b.onclick=async()=>{
+    const r=righe[+b.dataset.skip];
+    await sb.from('ord_righe').update({valutata:true}).eq('id',r.id);
+    toast('Segnato come una tantum'); vistaDaValutare();
+  });
+}
+
 
 // PDF UNICO: un file per fornitore, righe divise per ordine/reparto
 function exportUnico(ordini, righe){
