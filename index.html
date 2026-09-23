@@ -85,7 +85,11 @@ label.f>span{display:block;font-size:11px;text-transform:uppercase;letter-spacin
 .qty{display:flex;gap:6px;flex:none;align-items:center}
 .qty input{width:66px;padding:9px 8px;border:1.5px solid var(--line);border-radius:9px;text-align:center;font-weight:700;font-size:16px;background:#fff}
 .qty input.has{border-color:var(--acc);background:var(--acc-soft)}
+.qty input.zero{border-color:var(--mut);background:#eef0f2;color:var(--mut)}
+.qty input::placeholder{color:#c3c9cf;font-weight:400}
 .qty input:disabled{background:#f4f4f2;color:var(--ink-2);border-style:dashed}
+.badge.b-ver{background:#eef0f2;color:var(--mut)}
+.art.verif{box-shadow:inset 3px 0 0 var(--mut)}
 .qty select{padding:9px 4px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:13px}
 .art-listino{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:4px 12px}
 .flags{display:flex;gap:8px;margin-top:9px}
@@ -191,7 +195,7 @@ const settoriAnagUtente = () => {
 };
 const nomeAnag = s => s==='cucina' ? 'Cucina e pizzeria' : nomeSettore(s);
 const S = { user:null, view:'ordini', ordini:[], ordine:null, articoli:[], righe:{}, um:[], chips:[], fornitori:[],
-            dirty:new Set(), lista:null, q:'', fRep:null, fCat:null, fPos:null, soloQta:false, alertVisto:false };
+            dirty:new Set(), lista:null, q:'', fRep:null, fCat:null, fPos:null, soloQta:false, soloVer:false, alertVisto:false };
 const chipList = (settore,tipo) => S.chips.filter(c=>c.settore===settore && c.tipo===tipo).map(c=>c.valore);
 
 const $ = s => document.querySelector(s);
@@ -399,7 +403,7 @@ function nuovoOrdine(){
    DETTAGLIO ORDINE
    ============================================================ */
 async function apriOrdine(o){
-  S.ordine=o; S.view='ordine'; S.dirty.clear(); S.righe={}; S.q=''; S.fRep=null; S.fCat=null; S.fPos=null; S.soloQta=false;
+  S.ordine=o; S.view='ordine'; S.dirty.clear(); S.righe={}; S.q=''; S.fRep=null; S.fCat=null; S.fPos=null; S.soloQta=false; S.soloVer=false;
   S.lista = SETTORI[o.settore].liste.length>1 ? null : SETTORI[o.settore].liste[0];
   const { data } = await sb.from('ord_righe').select('*').eq('ordine_id',o.id);
   S.righe={}; S.libere=[];
@@ -423,6 +427,7 @@ function articoliVisibili(){
     if(S.fCat && a.categoria!==S.fCat) return false;
     if(S.fPos && a.posizione!==S.fPos) return false;
     if(S.soloQta && !(S.righe[a.id]?.quantita>0)) return false;
+    if(S.soloVer){ const r=S.righe[a.id]; if(r && r.quantita!=null) return false; }
     if(S.q){
       const t=(a.nome+' '+(a.categoria||'')+' '+(a.posizione||'')+' '+(a.produttore||'')+' '+(a.venditore_primario||'')).toLowerCase();
       if(!t.includes(S.q.toLowerCase())) return false;
@@ -464,12 +469,29 @@ function renderOrdine(){
       <button class="chip rep ${S.fRep==='Staff'?'on':''}" data-rep="Staff">Solo Staff</button>
     </div></div>` : '';
 
+  // avanzamento verifica: quanti articoli sono ancora "intonsi" (quantità mai toccata)
+  const baseAttivi = base;
+  const totBase = baseAttivi.length;
+  const daVer = baseAttivi.filter(a=>{ const r=S.righe[a.id]; return !r || r.quantita==null; }).length;
+  const verifOk = totBase - daVer;
+
   $('#main').innerHTML = `
     ${azioni.length?`<div class="card" style="display:flex;gap:8px">${azioni.join('')}</div>`:''}
     ${(!isMgr() && !puoCancellare(o) && o.creato_da===S.user.id && haRigheOrdinate())
       ? '<p class="muted" style="margin:-4px 0 10px">Questo ordine ha già articoli ordinati: solo il manager può cancellarlo.</p>':''}
+    <div class="card" style="padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+        <span>Verificati <b>${verifOk}</b> / ${totBase}</span>
+        ${daVer>0?`<span class="muted">${daVer} da controllare</span>`:'<span style="color:var(--acc);font-weight:600">tutto verificato ✓</span>'}
+      </div>
+      <div style="height:7px;border-radius:99px;background:#eceff2;overflow:hidden">
+        <div style="height:100%;width:${totBase?Math.round(verifOk/totBase*100):0}%;background:var(--acc)"></div></div>
+    </div>
     <input class="inp" id="q" placeholder="🔍 Cerca articolo…" value="${esc(S.q)}" style="margin-bottom:10px">
-    <button class="chip ${S.soloQta?'on':''}" id="f-qta" style="margin-bottom:10px">${S.soloQta?'✓ ':''}Solo articoli richiesti</button>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="chip ${S.soloQta?'on':''}" id="f-qta">${S.soloQta?'✓ ':''}Solo richiesti</button>
+      <button class="chip ${S.soloVer?'on':''}" id="f-ver">${S.soloVer?'✓ ':''}Da verificare${daVer?' ('+daVer+')':''}</button>
+    </div>
     ${repRow}
     <div class="flt"><div class="flt-lab">Settore merceologico</div><div class="chipwrap">
       <button class="chip ${!S.fCat?'on':''}" data-c="">Tutti (${art.length})</button>
@@ -485,7 +507,8 @@ function renderOrdine(){
     ${puoQta(o)?`<button class="btn ghost full" id="btn-libera" style="margin-top:4px">＋ Aggiungi prodotto non in elenco</button>`:''}`;
 
   $('#q').oninput=e=>{ S.q=e.target.value; $('#list').innerHTML=articoliVisibili().map(cardArticolo).join('')||'<div class="empty">Nessun risultato.</div>'; bindRighe(); };
-  $('#f-qta').onclick=()=>{ S.soloQta=!S.soloQta; renderOrdine(); };
+  $('#f-qta').onclick=()=>{ S.soloQta=!S.soloQta; if(S.soloQta) S.soloVer=false; renderOrdine(); };
+  $('#f-ver').onclick=()=>{ S.soloVer=!S.soloVer; if(S.soloVer) S.soloQta=false; renderOrdine(); };
   $('#main').querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>{ S.fRep=b.dataset.rep||null; renderOrdine(); });
   $('#main').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{ S.fCat=b.dataset.c||null; renderOrdine(); });
   $('#main').querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{ S.fPos=b.dataset.p||null; renderOrdine(); });
@@ -501,8 +524,10 @@ function cardArticolo(a){
   const bloccata = r.ordinato && !isMgr();
   const noPrice = vedeListino() && (a.prezzo===null||a.prezzo===undefined);
   const has = r.quantita>0;
+  const verif = r.quantita===0;   // 0 = controllato, non serve
   const meta = [
     a.posizione && `<span class="pos">${esc(a.posizione)}</span>`,
+    verif && '<span class="badge b-ver">✓ verificato · 0</span>',
     r.ordinato && '<span class="badge b-ord">ordinato</span>',
     r.da_riesportare && '<span class="badge b-warn">da riesportare</span>',
     a.categoria && esc(a.categoria),
@@ -522,15 +547,15 @@ function cardArticolo(a){
   const flags = editF ? `<div class="flags">
       <button class="flag ${r.ordinato?'on-ord':''}" data-flag="ordinato" data-id="${a.id}">${r.ordinato?'✓':'○'} Ordinato</button>
       <button class="flag ${r.consegnato?'on-con':''}" data-flag="consegnato" data-id="${a.id}">${r.consegnato?'✓':'○'} Consegnato</button></div>`:'';
-  return `<div class="art ${has?'filled':''} ${noPrice?'noprice':''} ${bloccata?'locked':''}" id="art-${a.id}">
+  return `<div class="art ${has?'filled':''} ${verif?'verif':''} ${noPrice?'noprice':''} ${bloccata?'locked':''}" id="art-${a.id}">
     <div class="art-top">
       <div style="flex:1;min-width:0">
         <div class="art-nm">${esc(a.nome)} ${bloccata?'<span title="riga ordinata: solo il manager può modificarla">🔒</span>':''}</div>
         <div class="art-meta">${meta}</div>
       </div>
       <div class="qty">
-        <input type="number" inputmode="decimal" step="any" min="0" placeholder="0"
-          value="${r.quantita??''}" class="${has?'has':''}" data-qta="${a.id}" ${editRiga?'':'disabled'}>
+        <input type="number" inputmode="decimal" step="any" min="0" placeholder="–"
+          value="${r.quantita??''}" class="${has?'has':''} ${verif?'zero':''}" data-qta="${a.id}" ${editRiga?'':'disabled'}>
         <select data-um="${a.id}" ${editRiga?'':'disabled'}>
           ${[...new Set([...(umDelSettore(S.ordine.settore)), ...(r.qta_um?[r.qta_um]:[])])].map(u=>`<option ${(r.qta_um||a.um)===u?'selected':''}>${u}</option>`).join('')}</select>
       </div>
@@ -691,8 +716,10 @@ function bindRighe(){
     }
     if(r.ordinato) r.da_riesportare=true;   // modificata dopo l'ordine -> va rimandata
     e.target.classList.toggle('has', r.quantita>0);
+    e.target.classList.toggle('zero', r.quantita===0);
     const card=document.getElementById('art-'+a.id);
     card.classList.toggle('filled', r.quantita>0);
+    card.classList.toggle('verif', r.quantita===0);
     const dif=card.querySelector('.difbox'); if(dif) dif.innerHTML = badgeDiscrepanza(r);
     segna(a.id);
   });
@@ -772,7 +799,7 @@ async function salvaAuto(){
     const up=[], del=[];
     for(const id of ids){
       const r=S.righe[id]; if(!r) continue;
-      const vuota = !(r.quantita>0) && !r.ordinato && !r.consegnato && !r.note_riga && !(r.ricevuto>0) && r.prezzo_ric_totale==null;
+      const vuota = r.quantita==null && !r.ordinato && !r.consegnato && !r.note_riga && !(r.ricevuto>0) && r.prezzo_ric_totale==null;
       if(vuota && r.id) del.push(r.id);
       else if(!vuota) up.push({ id:r.id, ordine_id:r.ordine_id, articolo_id:r.articolo_id, nome_snapshot:r.nome_snapshot,
         settore:r.settore, lista:r.lista, quantita:r.quantita, qta_richiesta:r.qta_richiesta??null, qta_um:r.qta_um,
