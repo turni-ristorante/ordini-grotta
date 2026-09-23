@@ -62,6 +62,13 @@ label.f>span{display:block;font-size:11px;text-transform:uppercase;letter-spacin
 .chip.pos.on{background:var(--amb);border-color:var(--amb)}
 .chip.rep.on{background:var(--acc);border-color:var(--acc);color:#fff}
 .dif{margin-top:7px;padding:6px 9px;border-radius:8px;background:#eef4fa;color:var(--ord);font-size:12px;font-weight:600}
+.ricez{margin-top:9px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#faf9f7}
+.ric-lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);font-weight:600;margin-bottom:6px}
+.ric-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ric-row input{padding:8px 9px;border:1.5px solid var(--line);border-radius:8px;background:#fff}
+.ric-q{width:84px;text-align:center;font-weight:700}
+.ric-p{flex:1;min-width:120px}
+.ric-info{margin-top:7px;font-size:12.5px}
 .badge{display:inline-block;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:600}
 .b-open{background:var(--amb-soft);color:var(--amb)}
 .b-ord{background:#e6f0f8;color:var(--ord)}
@@ -311,7 +318,8 @@ window.addEventListener('scroll', ()=>{
 document.addEventListener('click', e=>{ if(e.target && e.target.id==='btn-top') window.scrollTo({top:0,behavior:'smooth'}); });
 function menu(){
   const v=[['ordini','📋 Ordini'],
-    vedeListino()?['archivio','🔎 Archivio ordini']:null,
+    ['archivio','🔎 Archivio ordini'],
+    vedeListino()?['andamento','📈 Andamento economico']:null,
     vedeListino()?['valutare','🆕 Prodotti da valutare']:null,
     ['cestino','🗑 Cestino'],['anagrafica','📖 Anagrafica articoli'],
     vedeListino()?['fornitori','🚚 Fornitori']:null,
@@ -323,8 +331,8 @@ function menu(){
       chiudiModal();
       if(b.dataset.go==='logout'){ await uscita(); dimenticaCodice(); location.reload(); return; }
       await uscita();
-      ({ordini:vistaOrdini, archivio:vistaArchivio, valutare:vistaDaValutare, cestino:vistaCestino, anagrafica:vistaAnagrafica,
-        fornitori:vistaFornitori, chip:vistaChip, um:vistaUM, utenti:vistaUtenti})[b.dataset.go]();
+      ({ordini:vistaOrdini, archivio:vistaArchivio, andamento:vistaAndamento, valutare:vistaDaValutare, cestino:vistaCestino,
+        anagrafica:vistaAnagrafica, fornitori:vistaFornitori, chip:vistaChip, um:vistaUM, utenti:vistaUtenti})[b.dataset.go]();
     }));
 }
 
@@ -530,6 +538,7 @@ function cardArticolo(a){
     ${a.note?`<div class="muted" style="margin-top:6px">📝 ${esc(a.note)}</div>`:''}
     <div class="difbox">${badgeDiscrepanza(r)}</div>
     ${listino}${flags}
+    ${boxRicezione(a)}
     <div class="notebox">
       <input placeholder="Nota per questo ordine…" value="${esc(r.note_riga||'')}" data-note="${a.id}" ${editRiga?'':'disabled'}>
     </div>
@@ -541,6 +550,43 @@ function badgeDiscrepanza(r){
   if(Number(r.qta_richiesta) === Number(r.quantita??0) || !r.qta_modif_da) return '';
   const quando = r.qta_modif_il ? new Date(r.qta_modif_il).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
   return `<div class="dif">richiesti <b>${r.qta_richiesta}</b> → ordinati <b>${r.quantita??0}</b> ${esc(r.qta_um||'')} · modifica di ${esc(r.qta_modif_da)} ${quando}</div>`;
+}
+
+const numIT = n => (n==null||isNaN(n)) ? '—' : Number(n).toLocaleString('it-IT',{minimumFractionDigits:2, maximumFractionDigits:2});
+// prezzo unitario ricevuto e scostamento dal listino (tutto IVA esclusa)
+function calcScostamento(r, a){
+  const ric = Number(r.ricevuto), tot = Number(r.prezzo_ric_totale);
+  if(!(ric>0) || !(tot>=0) || r.prezzo_ric_totale==null) return null;
+  const unit = tot/ric;
+  const snap = r.prezzo_listino_snap!=null ? Number(r.prezzo_listino_snap) : (a && a.prezzo!=null ? Number(a.prezzo) : null);
+  const umList = r.prezzo_listino_um || (a?a.prezzo_um:null);
+  const comparabile = snap!=null && snap>0 && umList && r.qta_um && umList.toLowerCase()===String(r.qta_um).toLowerCase();
+  const scost = comparabile ? (unit-snap)/snap*100 : null;
+  return { unit, snap, comparabile, scost };
+}
+function boxRicezione(a){
+  const r=S.righe[a.id]||{};
+  const edit = puoFlaggare();           // il ricevimento lo registra responsabile/manager
+  if(!edit && !(r.ricevuto>0)) return '';
+  const sc = calcScostamento(r, a);
+  let esito='';
+  if(sc){
+    if(sc.comparabile){
+      const seg = sc.scost>0?'+':''; const col = Math.abs(sc.scost)>5 ? 'var(--warn)' : 'var(--acc)';
+      esito=`<div class="ric-info">€ <b>${numIT(sc.unit)}</b>/${esc(r.qta_um||'')} · listino € ${numIT(sc.snap)} · <b style="color:${col}">${seg}${sc.scost.toFixed(1)}%</b></div>`;
+    } else {
+      esito=`<div class="ric-info">€ <b>${numIT(sc.unit)}</b>/${esc(r.qta_um||'')} · <span class="muted">unità diversa dal listino, scostamento non confrontabile</span></div>`;
+    }
+  }
+  return `<div class="ricez">
+    <div class="ric-lab">Ricezione merce</div>
+    <div class="ric-row">
+      <input type="number" inputmode="decimal" step="any" min="0" placeholder="ricevuto" class="ric-q" value="${r.ricevuto??''}" data-ric="${a.id}" ${edit?'':'disabled'}>
+      <span class="muted">${esc(r.qta_um||'')}</span>
+      <input type="number" inputmode="decimal" step="any" min="0" placeholder="prezzo tot € (IVA escl.)" class="ric-p" value="${r.prezzo_ric_totale??''}" data-ricp="${a.id}" ${edit?'':'disabled'}>
+    </div>
+    ${esito}
+  </div>`;
 }
 
 /* ---------------- RIGHE LIBERE (fuori anagrafica) ---------------- */
@@ -667,6 +713,31 @@ function bindRighe(){
     bc.className='flag '+(r.consegnato?'on-con':''); bc.textContent=(r.consegnato?'✓':'○')+' Consegnato';
     segna(a.id);
   });
+  // ricezione merce: quantità ricevuta e prezzo totale (IVA esclusa)
+  const aggiornaRic=(a,r)=>{
+    // snapshot del prezzo di listino al primo inserimento
+    if((r.ricevuto>0 || r.prezzo_ric_totale!=null) && r.prezzo_listino_snap==null && a && a.prezzo!=null){
+      r.prezzo_listino_snap=a.prezzo; r.prezzo_listino_um=a.prezzo_um||null;
+    }
+    if(r.ricevuto>0){ r.consegnato=true; if(!r.consegnato_il) r.consegnato_il=new Date().toISOString(); }
+    r.ric_da=S.user.nome; r.ric_il=new Date().toISOString();
+    const card=document.getElementById('art-'+a.id);
+    const box=card && card.querySelector('.ric-info'); const sc=calcScostamento(r,a);
+    // ridisegna solo l'esito, senza perdere il focus sugli input
+    let html='';
+    if(sc){ if(sc.comparabile){ const seg=sc.scost>0?'+':''; const col=Math.abs(sc.scost)>5?'var(--warn)':'var(--acc)';
+        html=`€ <b>${numIT(sc.unit)}</b>/${esc(r.qta_um||'')} · listino € ${numIT(sc.snap)} · <b style="color:${col}">${seg}${sc.scost.toFixed(1)}%</b>`; }
+      else html=`€ <b>${numIT(sc.unit)}</b>/${esc(r.qta_um||'')} · <span class="muted">unità diversa dal listino</span>`; }
+    if(box) box.innerHTML=html;
+    else if(html && card){ const d=document.createElement('div'); d.className='ric-info'; d.innerHTML=html; card.querySelector('.ricez')?.appendChild(d); }
+    segna(a.id);
+  };
+  $('#main').querySelectorAll('[data-ric]').forEach(i=>i.onchange=e=>{
+    const a=art(i.dataset.ric), r=riga(a), v=parseFloat(e.target.value); r.ricevuto=isNaN(v)?null:v; aggiornaRic(a,r);
+  });
+  $('#main').querySelectorAll('[data-ricp]').forEach(i=>i.onchange=e=>{
+    const a=art(i.dataset.ricp), r=riga(a), v=parseFloat(e.target.value); r.prezzo_ric_totale=isNaN(v)?null:v; aggiornaRic(a,r);
+  });
 }
 
 // --- AUTO-SAVE ---
@@ -701,12 +772,15 @@ async function salvaAuto(){
     const up=[], del=[];
     for(const id of ids){
       const r=S.righe[id]; if(!r) continue;
-      const vuota = !(r.quantita>0) && !r.ordinato && !r.consegnato && !r.note_riga;
+      const vuota = !(r.quantita>0) && !r.ordinato && !r.consegnato && !r.note_riga && !(r.ricevuto>0) && r.prezzo_ric_totale==null;
       if(vuota && r.id) del.push(r.id);
       else if(!vuota) up.push({ id:r.id, ordine_id:r.ordine_id, articolo_id:r.articolo_id, nome_snapshot:r.nome_snapshot,
         settore:r.settore, lista:r.lista, quantita:r.quantita, qta_richiesta:r.qta_richiesta??null, qta_um:r.qta_um,
         qta_modif_da:r.qta_modif_da||null, qta_modif_il:r.qta_modif_il||null, fornitore:r.fornitore||null,
         da_riesportare:!!r.da_riesportare,
+        ricevuto:r.ricevuto??null, prezzo_ric_totale:r.prezzo_ric_totale??null,
+        prezzo_listino_snap:r.prezzo_listino_snap??null, prezzo_listino_um:r.prezzo_listino_um||null,
+        ric_da:r.ric_da||null, ric_il:r.ric_il||null,
         ordinato:r.ordinato, ordinato_il:r.ordinato_il||null, consegnato:r.consegnato, consegnato_il:r.consegnato_il||null,
         note_riga:r.note_riga, operatore:r.operatore, aggiornato_il:new Date().toISOString() });
     }
@@ -1518,8 +1592,10 @@ function generaPDF(fornitore, voci, modo, ordini, dividiPerReparto){
 async function vistaArchivio(){
   S.view='archivio'; $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide'); $('#sector-tabs').innerHTML='';
   $('#h-title').textContent='Archivio ordini';
-  $('#h-sub').textContent='Quanto è stato ordinato, e quando';
+  $('#h-sub').textContent='Quanto è stato ordinato e ricevuto, e quando';
   const a30 = new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+  // gli operatori vedono solo i propri settori
+  const settoriVisibili = vedeListino() ? ['cucina','pizzeria','sala_vini','bar'] : (S.user.settori||[]);
   $('#main').innerHTML = `
     <div class="card">
       <label class="f"><span>Articolo (anche parte del nome)</span>
@@ -1529,8 +1605,8 @@ async function vistaArchivio(){
         <label class="f"><span>Al</span><input class="inp" type="date" id="ar-d2" value="${oggi()}"></label>
       </div>
       <label class="f"><span>Settore</span><select class="inp" id="ar-set">
-        <option value="">Tutti</option>
-        ${S.user.settori.map(s=>`<option value="${s}">${nomeSettore(s)}</option>`).join('')}</select></label>
+        <option value="">${vedeListino()?'Tutti':'Tutti i miei settori'}</option>
+        ${settoriVisibili.map(s=>`<option value="${s}">${nomeSettore(s)}</option>`).join('')}</select></label>
       <button class="btn full" id="ar-go">🔎 Cerca</button>
     </div>
     <div id="ar-res"></div>`;
@@ -1541,25 +1617,26 @@ async function vistaArchivio(){
     const q=$('#ar-q').value.trim(), d1=$('#ar-d1').value, d2=$('#ar-d2').value, set=$('#ar-set').value;
     const res=$('#ar-res'); res.innerHTML='<p class="muted">Cerco…</p>';
     let sel = sb.from('ord_righe').select('*, ord_ordini!inner(data,settore,stato,eliminato_il,creato_nome)')
-      .gt('quantita',0).is('ord_ordini.eliminato_il',null);
+      .is('ord_ordini.eliminato_il',null);
     if(d1) sel = sel.gte('ord_ordini.data', d1);
     if(d2) sel = sel.lte('ord_ordini.data', d2);
     if(set) sel = sel.eq('ord_ordini.settore', set);
+    else if(!vedeListino()) sel = sel.in('ord_ordini.settore', settoriVisibili);
     if(q)   sel = sel.ilike('nome_snapshot', '%'+q+'%');
     const { data, error } = await sel;
     if(error){ res.innerHTML='<p class="muted" style="color:var(--warn)">Errore: '+esc(error.message)+'</p>'; return; }
-    const righe = data||[];
+    const righe = (data||[]).filter(r=>Number(r.quantita||0)>0 || Number(r.ricevuto||0)>0);
     if(!righe.length){ res.innerHTML='<div class="empty">Nessun ordine trovato in questo periodo.</div>'; return; }
 
-    // totali per articolo e unità di misura
     const per = {};
     righe.forEach(r=>{
       const k = r.nome_snapshot + '||' + (r.qta_um||'');
-      per[k] = per[k] || { nome:r.nome_snapshot, um:r.qta_um||'', tot:0, righe:[] };
-      per[k].tot += Number(r.quantita||0);
+      per[k] = per[k] || { nome:r.nome_snapshot, um:r.qta_um||'', ordinato:0, ricevuto:0, righe:[] };
+      per[k].ordinato += Number(r.quantita||0);
+      per[k].ricevuto += Number(r.ricevuto||0);
       per[k].righe.push(r);
     });
-    const gruppi = Object.values(per).sort((a,b)=>b.tot-a.tot);
+    const gruppi = Object.values(per).sort((a,b)=>b.ricevuto-a.ricevuto || b.ordinato-a.ordinato);
 
     res.innerHTML = `
       <h3 style="margin:6px 0 10px;font-size:14px">${gruppi.length} ${gruppi.length===1?'articolo':'articoli'} · ${dataIT(d1)} → ${dataIT(d2)}</h3>
@@ -1567,17 +1644,20 @@ async function vistaArchivio(){
         <div class="card">
           <div style="display:flex;align-items:baseline;gap:8px">
             <div style="flex:1;font-weight:600">${esc(g.nome)}</div>
-            <div class="dsp" style="font-size:20px;font-weight:700;color:var(--acc)">${g.tot.toLocaleString('it-IT')} ${esc(g.um)}</div>
+            <div style="text-align:right">
+              <div class="dsp" style="font-size:20px;font-weight:700;color:var(--acc)">${g.ricevuto.toLocaleString('it-IT')} ${esc(g.um)}</div>
+              <div class="muted" style="font-size:11.5px">ricevuti · ordinati ${g.ordinato.toLocaleString('it-IT')} ${esc(g.um)}</div>
+            </div>
           </div>
           <button class="chip" data-det="${i}" style="margin-top:8px">Dettaglio (${g.righe.length} ordini)</button>
           <div id="det-${i}" class="hide" style="margin-top:8px">
             ${g.righe.sort((x,y)=>x.ord_ordini.data.localeCompare(y.ord_ordini.data)).map(r=>{
-              const dif = (r.qta_richiesta!=null && Number(r.qta_richiesta)!==Number(r.quantita))
-                ? ` <span class="muted">(richiesti ${r.qta_richiesta}, variati da ${esc(r.qta_modif_da||'—')})</span>` : '';
+              const rich = r.qta_richiesta!=null ? r.qta_richiesta : r.quantita;
+              const ric  = r.ricevuto!=null ? r.ricevuto : '—';
+              const stato = r.consegnato?'<span style="color:var(--acc)">ricevuto</span>':r.ordinato?'<span style="color:var(--ord)">ordinato</span>':'<span style="color:var(--warn)">non ordinato</span>';
               return `<div style="padding:6px 0;border-top:1px solid var(--line);font-size:13.5px">
-                <b>${dataIT(r.ord_ordini.data)}</b> · ${nomeSettore(r.ord_ordini.settore)} — ${r.quantita} ${esc(r.qta_um||'')}${dif}
-                ${r.fornitore?` · ${esc(r.fornitore)}`:''}
-                ${r.consegnato?' · <span style="color:var(--acc)">consegnato</span>':r.ordinato?' · <span style="color:var(--ord)">ordinato</span>':' · <span style="color:var(--warn)">non ordinato</span>'}
+                <b>${dataIT(r.ord_ordini.data)}</b> · ${nomeSettore(r.ord_ordini.settore)}${r.fornitore?' · '+esc(r.fornitore):''}
+                <div class="muted" style="margin-top:2px">richiesti <b>${rich}</b> → ordinati <b>${r.quantita??0}</b> → ricevuti <b>${ric}</b> ${esc(r.qta_um||'')} · ${stato}</div>
               </div>`;
             }).join('')}
           </div>
@@ -1585,6 +1665,106 @@ async function vistaArchivio(){
     res.querySelectorAll('[data-det]').forEach(b=>b.onclick=()=>{
       const d=document.getElementById('det-'+b.dataset.det); d.classList.toggle('hide');
     });
+  }
+}
+
+/* ============================================================
+   ANDAMENTO ECONOMICO — prezzi reali vs listino, scostamenti
+   ============================================================ */
+async function vistaAndamento(){
+  S.view='andamento'; $('#savebar').classList.add('hide'); $('#btn-back').classList.remove('hide'); $('#sector-tabs').innerHTML='';
+  $('#h-title').textContent='Andamento economico'; $('#h-sub').textContent='Prezzi reali a confronto col listino (IVA esclusa)';
+  const a90 = new Date(Date.now()-90*86400000).toISOString().slice(0,10);
+  $('#main').innerHTML = `
+    <div class="card">
+      <div class="grid2">
+        <label class="f"><span>Dal</span><input class="inp" type="date" id="an-d1" value="${a90}"></label>
+        <label class="f"><span>Al</span><input class="inp" type="date" id="an-d2" value="${oggi()}"></label>
+      </div>
+      <label class="f"><span>Soglia scostamento da evidenziare</span>
+        <select class="inp" id="an-sog"><option value="5">± 5%</option><option value="10">± 10%</option><option value="15">± 15%</option><option value="0">Mostra tutto</option></select></label>
+      <button class="btn full" id="an-go">🔎 Analizza</button>
+    </div>
+    <div id="an-res"></div>`;
+  $('#an-go').onclick=analizza;
+
+  async function analizza(){
+    const d1=$('#an-d1').value, d2=$('#an-d2').value, sog=Number($('#an-sog').value);
+    const res=$('#an-res'); res.innerHTML='<p class="muted">Analizzo…</p>';
+    let sel = sb.from('ord_righe').select('*, ord_ordini!inner(data,settore,eliminato_il)')
+      .is('ord_ordini.eliminato_il',null).not('prezzo_ric_totale','is',null).gt('ricevuto',0);
+    if(d1) sel=sel.gte('ord_ordini.data',d1);
+    if(d2) sel=sel.lte('ord_ordini.data',d2);
+    const { data, error } = await sel;
+    if(error){ res.innerHTML='<p class="muted" style="color:var(--warn)">Errore: '+esc(error.message)+'</p>'; return; }
+    const righe=data||[];
+    if(!righe.length){ res.innerHTML='<div class="empty">Nessun prezzo di ricezione registrato in questo periodo.</div>'; return; }
+
+    // KPI: speso reale vs atteso a listino (solo righe confrontabili per l'atteso)
+    let spesoReale=0, attesoListino=0, confrontabili=0;
+    righe.forEach(r=>{
+      const a=S.articoli.find(x=>x.id===r.articolo_id);
+      const sc=calcScostamento(r,a);
+      spesoReale += Number(r.prezzo_ric_totale||0);
+      if(sc && sc.comparabile){ attesoListino += sc.snap*Number(r.ricevuto||0); confrontabili++; }
+    });
+    const diff = spesoReale-attesoListino;
+    const diffPct = attesoListino>0 ? diff/attesoListino*100 : null;
+
+    // per articolo: ultimo prezzo, scostamento, storico
+    const per={};
+    righe.forEach(r=>{
+      const a=S.articoli.find(x=>x.id===r.articolo_id);
+      const sc=calcScostamento(r,a);
+      const k=r.nome_snapshot;
+      per[k]=per[k]||{nome:k, um:r.qta_um||'', punti:[]};
+      per[k].punti.push({ data:r.ord_ordini.data, forn:r.fornitore, unit:sc?sc.unit:null, snap:sc?sc.snap:null,
+        scost:sc&&sc.comparabile?sc.scost:null, comparabile:!!(sc&&sc.comparabile) });
+    });
+    const articoli=Object.values(per).map(g=>{
+      g.punti.sort((a,b)=>a.data.localeCompare(b.data));
+      g.ultimo=g.punti[g.punti.length-1];
+      return g;
+    });
+    // ordina per scostamento assoluto dell'ultimo prezzo
+    const evid = articoli.filter(g=>g.ultimo.scost!=null && (sog===0 || Math.abs(g.ultimo.scost)>=sog))
+                         .sort((a,b)=>Math.abs(b.ultimo.scost)-Math.abs(a.ultimo.scost));
+
+    res.innerHTML = `
+      <div class="card" style="text-align:center">
+        <div class="muted">Spesa reale nel periodo (IVA escl.)</div>
+        <div class="dsp" style="font-size:26px;font-weight:700">€ ${numIT(spesoReale)}</div>
+        ${diffPct!=null?`<div style="margin-top:4px">vs listino € ${numIT(attesoListino)} · <b style="color:${diff>0?'var(--warn)':'var(--acc)'}">${diff>0?'+':''}${numIT(diff)} € (${diffPct>0?'+':''}${diffPct.toFixed(1)}%)</b></div>
+          <div class="muted" style="font-size:11px;margin-top:3px">confronto su ${confrontabili} ricezioni con unità allineata al listino</div>`:'<div class="muted" style="margin-top:4px">nessuna ricezione confrontabile col listino</div>'}
+      </div>
+      <h3 style="margin:14px 0 8px;font-size:14px">Scostamenti oltre soglia (${evid.length})</h3>
+      ${evid.length?evid.map((g,i)=>{
+        const u=g.ultimo, seg=u.scost>0?'+':'', col=u.scost>0?'var(--warn)':'var(--acc)';
+        return `<div class="card">
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <div style="flex:1;font-weight:600">${esc(g.nome)}</div>
+            <div style="text-align:right"><b style="color:${col};font-size:17px">${seg}${u.scost.toFixed(1)}%</b>
+              <div class="muted" style="font-size:11.5px">€ ${numIT(u.unit)} vs listino € ${numIT(u.snap)}</div></div>
+          </div>
+          <button class="chip" data-st="${articoli.indexOf(g)}" style="margin-top:8px">Storico prezzi (${g.punti.length})</button>
+          <div id="st-${articoli.indexOf(g)}" class="hide" style="margin-top:8px">
+            ${g.punti.map(p=>`<div style="padding:5px 0;border-top:1px solid var(--line);font-size:13px">
+              <b>${dataIT(p.data)}</b>${p.forn?' · '+esc(p.forn):''} — € ${numIT(p.unit)}/${esc(g.um)}
+              ${p.comparabile?` · <span style="color:${p.scost>0?'var(--warn)':'var(--acc)'}">${p.scost>0?'+':''}${p.scost.toFixed(1)}%</span>`:' · <span class="muted">non confrontabile</span>'}
+            </div>`).join('')}
+          </div>
+        </div>`;
+      }).join(''):'<div class="empty">Nessuno scostamento oltre la soglia scelta.</div>'}
+      <h3 style="margin:14px 0 8px;font-size:14px">Tutti gli articoli con prezzo ricevuto (${articoli.length})</h3>
+      ${articoli.sort((a,b)=>a.nome.localeCompare(b.nome)).map(g=>{
+        const u=g.ultimo;
+        return `<div style="padding:8px 0;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:baseline">
+          <div style="flex:1">${esc(g.nome)}</div>
+          <div class="muted">€ ${numIT(u.unit)}/${esc(g.um)}</div>
+          ${u.scost!=null?`<b style="color:${u.scost>0?'var(--warn)':'var(--acc)'};min-width:56px;text-align:right">${u.scost>0?'+':''}${u.scost.toFixed(1)}%</b>`:'<span class="muted" style="min-width:56px;text-align:right">—</span>'}
+        </div>`;
+      }).join('')}`;
+    res.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{ document.getElementById('st-'+b.dataset.st).classList.toggle('hide'); });
   }
 }
 
