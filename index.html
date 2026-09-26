@@ -90,6 +90,13 @@ label.f>span{display:block;font-size:11px;text-transform:uppercase;letter-spacin
 .qty input:disabled{background:#f4f4f2;color:var(--ink-2);border-style:dashed}
 .badge.b-ver{background:#eef0f2;color:var(--mut)}
 .art.verif{box-shadow:inset 3px 0 0 var(--mut)}
+.nb-lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:600;margin:8px 0 3px}
+.nb2 input,.nb3 input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff}
+.nb2 input{border-color:var(--amb);background:#fffdf7}
+.nota-rep{margin-top:9px;padding:8px 10px;border-radius:9px;background:var(--amb-soft);border:1px solid var(--amb);color:#7a4d00;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.nota-rep.vista{background:#f6f4ef;border-color:var(--line);color:var(--ink-2)}
+.nota-acq{margin-top:9px;padding:8px 10px;border-radius:9px;background:var(--acc-soft);border:1px solid var(--acc);color:#08544a;font-size:13px}
+.art.hasnota{box-shadow:inset 3px 0 0 var(--amb)}
 .qty select{padding:9px 4px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:13px}
 .art-listino{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:4px 12px}
 .flags{display:flex;gap:8px;margin-top:9px}
@@ -195,7 +202,7 @@ const settoriAnagUtente = () => {
 };
 const nomeAnag = s => s==='cucina' ? 'Cucina e pizzeria' : nomeSettore(s);
 const S = { user:null, view:'ordini', ordini:[], ordine:null, articoli:[], righe:{}, um:[], chips:[], fornitori:[],
-            dirty:new Set(), lista:null, q:'', fRep:null, fCat:null, fPos:null, soloQta:false, soloVer:false, alertVisto:false };
+            dirty:new Set(), lista:null, q:'', fRep:null, fCat:null, fPos:null, soloQta:false, soloVer:false, soloNoteRep:false, alertVisto:false };
 const chipList = (settore,tipo) => S.chips.filter(c=>c.settore===settore && c.tipo===tipo).map(c=>c.valore);
 
 const $ = s => document.querySelector(s);
@@ -210,9 +217,11 @@ const isResp = () => S.user?.ruolo === 'responsabile';
 const vedeListino = () => isMgr() || isResp();
 const puoFlaggare = () => isMgr() || isResp();
 const isProprietario = o => o && o.creato_da === S.user.id;
-// puo' modificare le quantita' dell'ordine in generale (creatore/resp/manager)
-const puoQta = o => isMgr() || isResp() || isProprietario(o);
-// REGOLA B: una riga gia' "ordinato" e' bloccata; solo il manager la puo' toccare
+const isOp = () => !isMgr() && !isResp();   // operatore = responsabile di settore
+const settoriUtente = () => S.user?.settori || [];
+// puo' inserire quantita' se vede l'ordine: acquisti/manager sempre, reparto se e' un suo settore
+const puoQta = o => isMgr() || isResp() || (o && settoriUtente().includes(o.settore));
+// una riga gia' "ordinato" e' bloccata (solo il manager la tocca); le altre restano modificabili
 const puoModificaRiga = r => isMgr() || (!(r && r.ordinato) && puoQta(S.ordine));
 // c'e' almeno una riga ordinata in questo ordine?
 const haRigheOrdinate = () => Object.values(S.righe).some(r=>r.ordinato);
@@ -403,7 +412,7 @@ function nuovoOrdine(){
    DETTAGLIO ORDINE
    ============================================================ */
 async function apriOrdine(o){
-  S.ordine=o; S.view='ordine'; S.dirty.clear(); S.righe={}; S.q=''; S.fRep=null; S.fCat=null; S.fPos=null; S.soloQta=false; S.soloVer=false;
+  S.ordine=o; S.view='ordine'; S.dirty.clear(); S.righe={}; S.q=''; S.fRep=null; S.fCat=null; S.fPos=null; S.soloQta=false; S.soloVer=false; S.soloNoteRep=false;
   S.lista = SETTORI[o.settore].liste.length>1 ? null : SETTORI[o.settore].liste[0];
   const { data } = await sb.from('ord_righe').select('*').eq('ordine_id',o.id);
   S.righe={}; S.libere=[];
@@ -428,6 +437,7 @@ function articoliVisibili(){
     if(S.fPos && a.posizione!==S.fPos) return false;
     if(S.soloQta && !(S.righe[a.id]?.quantita>0)) return false;
     if(S.soloVer){ const r=S.righe[a.id]; if(r && r.quantita!=null) return false; }
+    if(S.soloNoteRep){ const r=S.righe[a.id]; if(!r || !r.nota_reparto || r.nota_reparto_vista) return false; }
     if(S.q){
       const t=(a.nome+' '+(a.categoria||'')+' '+(a.posizione||'')+' '+(a.produttore||'')+' '+(a.venditore_primario||'')).toLowerCase();
       if(!t.includes(S.q.toLowerCase())) return false;
@@ -475,8 +485,12 @@ function renderOrdine(){
   const daVer = baseAttivi.filter(a=>{ const r=S.righe[a.id]; return !r || r.quantita==null; }).length;
   const verifOk = totBase - daVer;
 
+  // note dai reparti non ancora viste (evidenza per gli acquisti)
+  const noteRep = vedeListino() ? Object.values(S.righe).filter(r=>r.nota_reparto && !r.nota_reparto_vista).length : 0;
+
   $('#main').innerHTML = `
     ${azioni.length?`<div class="card" style="display:flex;gap:8px">${azioni.join('')}</div>`:''}
+    ${noteRep>0?`<button class="btn full" id="btn-noterep" style="margin-bottom:10px;background:var(--amb)">📩 ${noteRep} ${noteRep===1?'nota dal reparto':'note dai reparti'} da leggere</button>`:''}
     ${(!isMgr() && !puoCancellare(o) && o.creato_da===S.user.id && haRigheOrdinate())
       ? '<p class="muted" style="margin:-4px 0 10px">Questo ordine ha già articoli ordinati: solo il manager può cancellarlo.</p>':''}
     <div class="card" style="padding:10px 12px">
@@ -509,6 +523,7 @@ function renderOrdine(){
   $('#q').oninput=e=>{ S.q=e.target.value; $('#list').innerHTML=articoliVisibili().map(cardArticolo).join('')||'<div class="empty">Nessun risultato.</div>'; bindRighe(); };
   $('#f-qta').onclick=()=>{ S.soloQta=!S.soloQta; if(S.soloQta) S.soloVer=false; renderOrdine(); };
   $('#f-ver').onclick=()=>{ S.soloVer=!S.soloVer; if(S.soloVer) S.soloQta=false; renderOrdine(); };
+  if($('#btn-noterep')) $('#btn-noterep').onclick=()=>{ S.soloNoteRep=true; S.soloVer=false; S.soloQta=false; renderOrdine(); };
   $('#main').querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>{ S.fRep=b.dataset.rep||null; renderOrdine(); });
   $('#main').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{ S.fCat=b.dataset.c||null; renderOrdine(); });
   $('#main').querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{ S.fPos=b.dataset.p||null; renderOrdine(); });
@@ -547,7 +562,8 @@ function cardArticolo(a){
   const flags = editF ? `<div class="flags">
       <button class="flag ${r.ordinato?'on-ord':''}" data-flag="ordinato" data-id="${a.id}">${r.ordinato?'✓':'○'} Ordinato</button>
       <button class="flag ${r.consegnato?'on-con':''}" data-flag="consegnato" data-id="${a.id}">${r.consegnato?'✓':'○'} Consegnato</button></div>`:'';
-  return `<div class="art ${has?'filled':''} ${verif?'verif':''} ${noPrice?'noprice':''} ${bloccata?'locked':''}" id="art-${a.id}">
+  const notaRepView = vedeListino() && r.nota_reparto && !r.nota_reparto_vista;
+  return `<div class="art ${has?'filled':''} ${verif?'verif':''} ${noPrice?'noprice':''} ${bloccata?'locked':''} ${notaRepView?'hasnota':''}" id="art-${a.id}">
     <div class="art-top">
       <div style="flex:1;min-width:0">
         <div class="art-nm">${esc(a.nome)} ${bloccata?'<span title="riga ordinata: solo il manager può modificarla">🔒</span>':''}</div>
@@ -564,10 +580,34 @@ function cardArticolo(a){
     <div class="difbox">${badgeDiscrepanza(r)}</div>
     ${listino}${flags}
     ${boxRicezione(a)}
-    <div class="notebox">
-      <input placeholder="Nota per questo ordine…" value="${esc(r.note_riga||'')}" data-note="${a.id}" ${editRiga?'':'disabled'}>
-    </div>
+    ${bloccoNote(a, r, editRiga)}
   </div>`;
+}
+
+// Le tre note: fornitore (nel PDF) · reparto→acquisti (evidenziata) · acquisti→reparto
+function bloccoNote(a, r, editRiga){
+  let h='';
+  // #1 nota al fornitore (esce nel PDF)
+  h += `<div class="notebox">
+    <input placeholder="Nota per il fornitore (esce nel PDF)…" value="${esc(r.note_riga||'')}" data-note="${a.id}" ${editRiga?'':'disabled'}></div>`;
+  // #2 dal reparto agli acquisti
+  if(isOp()){
+    h += `<div class="nb2"><div class="nb-lab">📩 Nota per gli acquisti</div>
+      <input placeholder="es. oggi servono molti pomodori per…" value="${esc(r.nota_reparto||'')}" data-notarep="${a.id}"></div>`;
+  } else if(r.nota_reparto){
+    h += `<div class="nota-rep ${r.nota_reparto_vista?'vista':''}">
+      <div>📩 <b>Dal reparto:</b> ${esc(r.nota_reparto)}</div>
+      ${r.nota_reparto_vista?'<span class="muted" style="font-size:11px">✓ vista</span>'
+        :`<button class="btn ghost" data-vista="${a.id}" style="padding:5px 10px;font-size:12px">Segna come vista</button>`}</div>`;
+  }
+  // #3 dagli acquisti al reparto
+  if(isResp()||isMgr()){
+    h += `<div class="nb3"><div class="nb-lab">✎ Nota per il reparto (spiega una variazione)</div>
+      <input placeholder="es. ordinato meno perché ne era rimasto in cella…" value="${esc(r.nota_acquisti||'')}" data-notaacq="${a.id}"></div>`;
+  } else if(r.nota_acquisti){
+    h += `<div class="nota-acq">✎ <b>Dagli acquisti:</b> ${esc(r.nota_acquisti)}</div>`;
+  }
+  return h;
 }
 
 function badgeDiscrepanza(r){
@@ -706,12 +746,14 @@ function bindRighe(){
   $('#main').querySelectorAll('[data-qta]').forEach(i=>i.onchange=e=>{
     const a=art(i.dataset.qta), r=riga(a), v=e.target.value===''?null:parseFloat(e.target.value);
     const nuovaQ = (v===null||isNaN(v))?null:v;
-    if(isProprietario(S.ordine) && !r.ordinato){
-      r.quantita=nuovaQ; r.qta_richiesta=nuovaQ; r.operatore=S.user.nome;
+    if(isOp() && !r.ordinato){
+      // il responsabile di settore scrive la richiesta del reparto
+      r.quantita=nuovaQ; r.qta_richiesta=nuovaQ; r.qta_modif_da=null; r.qta_modif_il=null; r.operatore=S.user.nome;
     } else {
+      // acquisti/manager: la richiesta del reparto resta congelata, si traccia la variazione
       if(r.qta_richiesta===null || r.qta_richiesta===undefined) r.qta_richiesta = r.quantita ?? null;
       r.quantita=nuovaQ;
-      if(r.qta_richiesta !== nuovaQ){ r.qta_modif_da=S.user.nome; r.qta_modif_il=new Date().toISOString(); }
+      if(r.qta_richiesta!=null && r.qta_richiesta !== nuovaQ){ r.qta_modif_da=S.user.nome; r.qta_modif_il=new Date().toISOString(); }
       else { r.qta_modif_da=null; r.qta_modif_il=null; }
     }
     if(r.ordinato) r.da_riesportare=true;   // modificata dopo l'ordine -> va rimandata
@@ -728,6 +770,18 @@ function bindRighe(){
   });
   $('#main').querySelectorAll('[data-note]').forEach(i=>i.onchange=e=>{
     const a=art(i.dataset.note), r=riga(a); r.note_riga=e.target.value||null; if(r.ordinato) r.da_riesportare=true; segna(a.id);
+  });
+  // #2 nota reparto -> acquisti: scriverla la rende "non vista"
+  $('#main').querySelectorAll('[data-notarep]').forEach(i=>i.onchange=e=>{
+    const a=art(i.dataset.notarep), r=riga(a); r.nota_reparto=e.target.value||null; r.nota_reparto_vista=false; segna(a.id);
+  });
+  // #3 nota acquisti -> reparto: sempre scrivibile da resp/manager, non tocca il "da riesportare"
+  $('#main').querySelectorAll('[data-notaacq]').forEach(i=>i.onchange=e=>{
+    const a=art(i.dataset.notaacq), r=riga(a); r.nota_acquisti=e.target.value||null; segna(a.id);
+  });
+  // segna come vista una nota del reparto
+  $('#main').querySelectorAll('[data-vista]').forEach(b=>b.onclick=()=>{
+    const a=art(b.dataset.vista), r=riga(a); r.nota_reparto_vista=true; segna(a.id); renderOrdine();
   });
   $('#main').querySelectorAll('[data-flag]').forEach(b=>b.onclick=()=>{
     const a=art(b.dataset.id), r=riga(a), f=b.dataset.flag;
@@ -799,7 +853,7 @@ async function salvaAuto(){
     const up=[], del=[];
     for(const id of ids){
       const r=S.righe[id]; if(!r) continue;
-      const vuota = r.quantita==null && !r.ordinato && !r.consegnato && !r.note_riga && !(r.ricevuto>0) && r.prezzo_ric_totale==null;
+      const vuota = r.quantita==null && !r.ordinato && !r.consegnato && !r.note_riga && !r.nota_reparto && !r.nota_acquisti && !(r.ricevuto>0) && r.prezzo_ric_totale==null;
       if(vuota && r.id) del.push(r.id);
       else if(!vuota) up.push({ id:r.id, ordine_id:r.ordine_id, articolo_id:r.articolo_id, nome_snapshot:r.nome_snapshot,
         settore:r.settore, lista:r.lista, quantita:r.quantita, qta_richiesta:r.qta_richiesta??null, qta_um:r.qta_um,
@@ -808,6 +862,7 @@ async function salvaAuto(){
         ricevuto:r.ricevuto??null, prezzo_ric_totale:r.prezzo_ric_totale??null,
         prezzo_listino_snap:r.prezzo_listino_snap??null, prezzo_listino_um:r.prezzo_listino_um||null,
         ric_da:r.ric_da||null, ric_il:r.ric_il||null,
+        nota_reparto:r.nota_reparto||null, nota_reparto_vista:!!r.nota_reparto_vista, nota_acquisti:r.nota_acquisti||null,
         ordinato:r.ordinato, ordinato_il:r.ordinato_il||null, consegnato:r.consegnato, consegnato_il:r.consegnato_il||null,
         note_riga:r.note_riga, operatore:r.operatore, aggiornato_il:new Date().toISOString() });
     }
@@ -1183,7 +1238,11 @@ function schedaArticolo(a, done){
     <label class="f"><span>Note</span><textarea class="inp" rows="2" data-k="note" ${ro?'disabled':''}>${esc(a.note??'')}</textarea></label>
     ${vedeListino()?`
       <h3 style="margin:16px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)">Listino</h3>
-      <div class="grid2">${F('prezzo','Prezzo €','number')}${F('prezzo_um','Prezzo per (U.M.)')}</div>
+      <div class="grid2">${F('prezzo','Prezzo €','number')}
+        <label class="f"><span>Prezzo per (U.M.)</span><select class="inp" data-k="prezzo_um" ${ro?'disabled':''}>
+          <option value="">—</option>
+          ${[...new Set([...S.um, ...(a.prezzo_um?[a.prezzo_um]:[])])].map(u=>`<option ${a.prezzo_um===u?'selected':''}>${esc(u)}</option>`).join('')}
+        </select></label></div>
       <div class="grid2">${FF('venditore_primario','Venditore primario')}${FF('venditore_alternativo','Venditore alternativo')}</div>
       <datalist id="dl-forn">${optForn}</datalist>
       <div class="grid2">${F('codice','Codice')}${F('tipo_consegna','Tipo consegna')}</div>
