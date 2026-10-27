@@ -619,13 +619,16 @@ function badgeDiscrepanza(r){
 
 const numIT = n => (n==null||isNaN(n)) ? '—' : Number(n).toLocaleString('it-IT',{minimumFractionDigits:2, maximumFractionDigits:2});
 // prezzo unitario ricevuto e scostamento dal listino (tutto IVA esclusa)
+// unità della ricezione: quella scelta nella ricezione, se manca quella dell'ordine
+const umRic = r => r.ric_um || r.qta_um || '';
 function calcScostamento(r, a){
   const ric = Number(r.ricevuto), tot = Number(r.prezzo_ric_totale);
   if(!(ric>0) || !(tot>=0) || r.prezzo_ric_totale==null) return null;
   const unit = tot/ric;
   const snap = r.prezzo_listino_snap!=null ? Number(r.prezzo_listino_snap) : (a && a.prezzo!=null ? Number(a.prezzo) : null);
   const umList = r.prezzo_listino_um || (a?a.prezzo_um:null);
-  const comparabile = snap!=null && snap>0 && umList && r.qta_um && umList.toLowerCase()===String(r.qta_um).toLowerCase();
+  const u = umRic(r);
+  const comparabile = snap!=null && snap>0 && umList && u && umList.toLowerCase()===String(u).toLowerCase();
   const scost = comparabile ? (unit-snap)/snap*100 : null;
   return { unit, snap, comparabile, scost };
 }
@@ -634,20 +637,25 @@ function boxRicezione(a){
   const edit = puoFlaggare();           // il ricevimento lo registra responsabile/manager
   if(!edit && !(r.ricevuto>0)) return '';
   const sc = calcScostamento(r, a);
+  const u = umRic(r);
+  const umListino = r.prezzo_listino_um || (a?a.prezzo_um:null);
   let esito='';
   if(sc){
     if(sc.comparabile){
       const seg = sc.scost>0?'+':''; const col = Math.abs(sc.scost)>5 ? 'var(--warn)' : 'var(--acc)';
-      esito=`<div class="ric-info">€ <b>${numIT(sc.unit)}</b>/${esc(r.qta_um||'')} · listino € ${numIT(sc.snap)} · <b style="color:${col}">${seg}${sc.scost.toFixed(1)}%</b></div>`;
+      esito=`<div class="ric-info">€ <b>${numIT(sc.unit)}</b>/${esc(u)} · listino € ${numIT(sc.snap)} · <b style="color:${col}">${seg}${sc.scost.toFixed(1)}%</b></div>`;
     } else {
-      esito=`<div class="ric-info">€ <b>${numIT(sc.unit)}</b>/${esc(r.qta_um||'')} · <span class="muted">unità diversa dal listino, scostamento non confrontabile</span></div>`;
+      esito=`<div class="ric-info">€ <b>${numIT(sc.unit)}</b>/${esc(u)} · <span class="muted">unità diversa dal listino${umListino?' ('+esc(umListino)+')':''}: per il confronto scegli la stessa unità</span></div>`;
     }
   }
+  // tendina unità: quelle del settore + eventuali già presenti (ordine, ricezione, listino)
+  const ums = [...new Set([...(umDelSettore(S.ordine.settore)), r.qta_um, r.ric_um, umListino].filter(Boolean))];
   return `<div class="ricez">
     <div class="ric-lab">Ricezione merce</div>
     <div class="ric-row">
       <input type="number" inputmode="decimal" step="any" min="0" placeholder="ricevuto" class="ric-q" value="${r.ricevuto??''}" data-ric="${a.id}" ${edit?'':'disabled'}>
-      <span class="muted">${esc(r.qta_um||'')}</span>
+      <select class="ric-um" data-ricum="${a.id}" ${edit?'':'disabled'}>
+        ${ums.map(x=>`<option ${u===x?'selected':''}>${esc(x)}</option>`).join('')}</select>
       <input type="number" inputmode="decimal" step="any" min="0" placeholder="prezzo tot € (IVA escl.)" class="ric-p" value="${r.prezzo_ric_totale??''}" data-ricp="${a.id}" ${edit?'':'disabled'}>
     </div>
     ${esito}
@@ -794,27 +802,32 @@ function bindRighe(){
     bc.className='flag '+(r.consegnato?'on-con':''); bc.textContent=(r.consegnato?'✓':'○')+' Consegnato';
     segna(a.id);
   });
-  // ricezione merce: quantità ricevuta e prezzo totale (IVA esclusa)
+  // ricezione merce: quantità ricevuta, unità e prezzo totale (IVA esclusa)
   const aggiornaRic=(a,r)=>{
     // snapshot del prezzo di listino al primo inserimento
     if((r.ricevuto>0 || r.prezzo_ric_totale!=null) && r.prezzo_listino_snap==null && a && a.prezzo!=null){
       r.prezzo_listino_snap=a.prezzo; r.prezzo_listino_um=a.prezzo_um||null;
     }
+    if(!r.ric_um) r.ric_um = r.qta_um || null;   // parte dall'unità dell'ordine
     if(r.ricevuto>0){ r.consegnato=true; if(!r.consegnato_il) r.consegnato_il=new Date().toISOString(); }
     r.ric_da=S.user.nome; r.ric_il=new Date().toISOString();
     const card=document.getElementById('art-'+a.id);
     const box=card && card.querySelector('.ric-info'); const sc=calcScostamento(r,a);
+    const u=umRic(r), umListino=r.prezzo_listino_um||(a?a.prezzo_um:null);
     // ridisegna solo l'esito, senza perdere il focus sugli input
     let html='';
     if(sc){ if(sc.comparabile){ const seg=sc.scost>0?'+':''; const col=Math.abs(sc.scost)>5?'var(--warn)':'var(--acc)';
-        html=`€ <b>${numIT(sc.unit)}</b>/${esc(r.qta_um||'')} · listino € ${numIT(sc.snap)} · <b style="color:${col}">${seg}${sc.scost.toFixed(1)}%</b>`; }
-      else html=`€ <b>${numIT(sc.unit)}</b>/${esc(r.qta_um||'')} · <span class="muted">unità diversa dal listino</span>`; }
+        html=`€ <b>${numIT(sc.unit)}</b>/${esc(u)} · listino € ${numIT(sc.snap)} · <b style="color:${col}">${seg}${sc.scost.toFixed(1)}%</b>`; }
+      else html=`€ <b>${numIT(sc.unit)}</b>/${esc(u)} · <span class="muted">unità diversa dal listino${umListino?' ('+esc(umListino)+')':''}: per il confronto scegli la stessa unità</span>`; }
     if(box) box.innerHTML=html;
     else if(html && card){ const d=document.createElement('div'); d.className='ric-info'; d.innerHTML=html; card.querySelector('.ricez')?.appendChild(d); }
     segna(a.id);
   };
   $('#main').querySelectorAll('[data-ric]').forEach(i=>i.onchange=e=>{
     const a=art(i.dataset.ric), r=riga(a), v=parseFloat(e.target.value); r.ricevuto=isNaN(v)?null:v; aggiornaRic(a,r);
+  });
+  $('#main').querySelectorAll('[data-ricum]').forEach(s=>s.onchange=e=>{
+    const a=art(s.dataset.ricum), r=riga(a); r.ric_um=e.target.value||null; aggiornaRic(a,r);
   });
   $('#main').querySelectorAll('[data-ricp]').forEach(i=>i.onchange=e=>{
     const a=art(i.dataset.ricp), r=riga(a), v=parseFloat(e.target.value); r.prezzo_ric_totale=isNaN(v)?null:v; aggiornaRic(a,r);
@@ -861,7 +874,7 @@ async function salvaAuto(){
         da_riesportare:!!r.da_riesportare,
         ricevuto:r.ricevuto??null, prezzo_ric_totale:r.prezzo_ric_totale??null,
         prezzo_listino_snap:r.prezzo_listino_snap??null, prezzo_listino_um:r.prezzo_listino_um||null,
-        ric_da:r.ric_da||null, ric_il:r.ric_il||null,
+        ric_um:r.ric_um||null, ric_da:r.ric_da||null, ric_il:r.ric_il||null,
         nota_reparto:r.nota_reparto||null, nota_reparto_vista:!!r.nota_reparto_vista, nota_acquisti:r.nota_acquisti||null,
         ordinato:r.ordinato, ordinato_il:r.ordinato_il||null, consegnato:r.consegnato, consegnato_il:r.consegnato_il||null,
         note_riga:r.note_riga, operatore:r.operatore, aggiornato_il:new Date().toISOString() });
@@ -1743,7 +1756,7 @@ async function vistaArchivio(){
               const stato = r.consegnato?'<span style="color:var(--acc)">ricevuto</span>':r.ordinato?'<span style="color:var(--ord)">ordinato</span>':'<span style="color:var(--warn)">non ordinato</span>';
               return `<div style="padding:6px 0;border-top:1px solid var(--line);font-size:13.5px">
                 <b>${dataIT(r.ord_ordini.data)}</b> · ${nomeSettore(r.ord_ordini.settore)}${r.fornitore?' · '+esc(r.fornitore):''}
-                <div class="muted" style="margin-top:2px">richiesti <b>${rich}</b> → ordinati <b>${r.quantita??0}</b> → ricevuti <b>${ric}</b> ${esc(r.qta_um||'')} · ${stato}</div>
+                <div class="muted" style="margin-top:2px">richiesti <b>${rich}</b> → ordinati <b>${r.quantita??0}</b> ${esc(r.qta_um||'')} → ricevuti <b>${ric}</b> ${esc(umRic(r))} · ${stato}</div>
               </div>`;
             }).join('')}
           </div>
@@ -1803,8 +1816,9 @@ async function vistaAndamento(){
       const a=S.articoli.find(x=>x.id===r.articolo_id);
       const sc=calcScostamento(r,a);
       const k=r.nome_snapshot;
-      per[k]=per[k]||{nome:k, um:r.qta_um||'', punti:[]};
-      per[k].punti.push({ data:r.ord_ordini.data, forn:r.fornitore, unit:sc?sc.unit:null, snap:sc?sc.snap:null,
+      per[k]=per[k]||{nome:k, um:umRic(r), punti:[]};
+      if(!per[k].um) per[k].um=umRic(r);
+      per[k].punti.push({ data:r.ord_ordini.data, forn:r.fornitore, unit:sc?sc.unit:null, snap:sc?sc.snap:null, um:umRic(r),
         scost:sc&&sc.comparabile?sc.scost:null, comparabile:!!(sc&&sc.comparabile) });
     });
     const articoli=Object.values(per).map(g=>{
