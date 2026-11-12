@@ -1674,7 +1674,46 @@ function generaPDF(fornitore, voci, modo, ordini, dividiPerReparto){
 
   doc.setFontSize(9); doc.setTextColor(...GRIGIO);
   doc.text(`${voci.length} ${voci.length===1?'articolo':'articoli'} · generato il ${new Date().toLocaleString('it-IT')}`, 16, y);
+  y += 4;
+
+  // --- Condizioni di consegna (riquadro ambra, in fondo) ---
+  const AMBRA=[180,112,10], AMBRA_SOFT=[253,241,220], SCURO=[42,34,48];
+  const bx=16, bw=pw-32, padX=6, lh=4.3, inX=16+6, inW=(pw-32)-12;
+  const paras=[
+    [{t:'Le consegne sono accettate esclusivamente il ',b:0},{t:'martedì',b:1},{t:' e il ',b:0},{t:'venerdì',b:1},{t:', dalle ',b:0},{t:'ore 9:00 alle ore 12:00',b:1},{t:'. Non saranno accettate consegne in giornate od orari differenti.',b:0}],
+    [{t:'La merce dovrà essere ',b:0},{t:'sbancalata',b:1},{t:" e trasportata all'interno del locale mediante carrello idoneo, che non arrechi danno alla pavimentazione.",b:0}],
+    [{t:'Eventuali deroghe devono essere ',b:0},{t:'richieste e concordate',b:1},{t:' in anticipo.',b:0}]
+  ];
+  const layout=(runs,x,y0,maxW,draw)=>{
+    const words=[];
+    runs.forEach(run=>run.t.split(/(\s+)/).forEach(p=>{ if(p!=='') words.push({t:p,b:run.b,sp:/^\s+$/.test(p)}); }));
+    let cx=x, cy=y0;
+    words.forEach(w=>{
+      doc.setFont('helvetica', w.b?'bold':'normal');
+      const ww=doc.getTextWidth(w.t);
+      if(!w.sp && cx+ww > x+maxW+0.01){ cx=x; cy+=lh; }
+      if(w.sp && Math.abs(cx-x)<0.01) return;
+      if(draw) doc.text(w.t, cx, cy);
+      cx+=ww;
+    });
+    return cy;
+  };
+  const content=(firstBaseline,draw)=>{
+    let yy=firstBaseline;
+    if(draw){ doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...VIOLA); doc.text('CONDIZIONI DI CONSEGNA', inX, yy); }
+    yy+=5.6;
+    doc.setFontSize(9.3); if(draw) doc.setTextColor(...SCURO);
+    paras.forEach((p,i)=>{ yy=layout(p,inX,yy,inW,draw)+lh; if(i<paras.length-1) yy+=1.2; });
+    return yy;
+  };
   const ph = doc.internal.pageSize.getHeight();
+  doc.setFontSize(9.3);
+  let boxTop=y+2, fb=boxTop+7, boxBottom=content(fb,false)+1.5;
+  if(boxBottom > ph-18){ doc.addPage(); boxTop=18; fb=boxTop+7; doc.setFontSize(9.3); boxBottom=content(fb,false)+1.5; }
+  doc.setFillColor(...AMBRA_SOFT); doc.setDrawColor(...AMBRA); doc.setLineWidth(0.6);
+  doc.roundedRect(bx, boxTop, bw, boxBottom-boxTop, 2.5, 2.5, 'FD');
+  content(fb,true);
+
   doc.setFontSize(8); doc.setTextColor(...GRIGIO);
   doc.text('Grotta Marcello · Rifugio del gusto · Cagliari', pw/2, ph-12, {align:'center'});
 
