@@ -1388,13 +1388,33 @@ async function vistaExport(){
       <label style="display:flex;gap:8px;align-items:flex-start"><input type="radio" name="fmt" value="sep">
         <span><b>Separati per reparto</b><br><span class="muted">Un documento per ogni reparto e fornitore.</span></span></label>
     </div>
-    <div class="flt-lab" style="margin:4px 0 6px">Ordini da includere</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:4px 0 6px">
+      <div class="flt-lab" style="margin:0">Ordini da includere</div>
+      <div style="display:flex;gap:6px">
+        <button class="chip" id="ex-all">Tutti</button>
+        <button class="chip" id="ex-none">Nessuno</button>
+      </div>
+    </div>
     ${aperti.map(o=>`<label class="card" style="display:flex;align-items:center;gap:10px;cursor:pointer">
         <input type="checkbox" class="ex-o" value="${o.id}">
         <div style="flex:1"><div style="font-weight:600">${titoloOrdine(o)}</div>
           <div class="muted">${o.stato==='ordini_chiusi'?'ordini chiusi':'aperto'} · creato da ${esc(o.creato_nome||'—')}</div></div>
       </label>`).join('')}
-    <button class="btn full" id="ex-go" style="margin-top:6px">Procedi →</button>`;
+    <div style="height:78px"></div>
+    <div class="savebar" id="ex-bar">
+      <div class="cnt" id="ex-cnt">Nessun ordine selezionato</div>
+      <button class="btn" id="ex-go" disabled>Procedi →</button>
+    </div>`;
+  const exCnt=$('#ex-cnt');
+  const aggiornaEx=()=>{
+    const n=document.querySelectorAll('.ex-o:checked').length;
+    exCnt.innerHTML = n ? `<b style="color:var(--acc)">${n}</b> ${n===1?'ordine selezionato':'ordini selezionati'}` : 'Nessun ordine selezionato';
+    $('#ex-go').disabled = !n;
+  };
+  document.querySelectorAll('.ex-o').forEach(c=>c.onchange=aggiornaEx);
+  $('#ex-all').onclick=()=>{ document.querySelectorAll('.ex-o').forEach(c=>c.checked=true); aggiornaEx(); };
+  $('#ex-none').onclick=()=>{ document.querySelectorAll('.ex-o').forEach(c=>c.checked=false); aggiornaEx(); };
+  aggiornaEx();
   $('#ex-go').onclick=async()=>{
     const ids=[...document.querySelectorAll('.ex-o:checked')].map(c=>+c.value);
     if(!ids.length){ alert('Seleziona almeno un ordine.'); return; }
